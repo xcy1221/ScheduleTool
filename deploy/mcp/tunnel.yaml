@@ -1,0 +1,23 @@
+config_version: 1
+control_plane:
+  base_url: https://api.openai.com
+  tunnel_id: REPLACE_WITH_EXISTING_TUNNEL_ID
+  api_key: file:/run/secrets/tunnel-runtime-key
+  http_proxy: http://mihomo:7890
+health:
+  listen_addr: 127.0.0.1:18083
+admin_ui:
+  open_browser: false
+log:
+  level: info
+  format: json
+mcp:
+  startup_wait_timeout: 60s
+  server_urls:
+    - channel: main
+      url: https://schedule.example.com/schedule/mcp
+harpoon:
+  hosts_include_loopback: false
+  hosts_include_private: false
+  hosts_include_regex:
+    - '^schedule\.example\.com$'

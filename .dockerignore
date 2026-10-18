@@ -1,0 +1,16 @@
+.git
+.local
+.env
+.env.*
+**/private
+**/*.pem
+**/*.key
+**/*.jwk
+**/*.p12
+**/*.pfx
+docs
+tests
+skills
+frontend/node_modules
+frontend/dist
+backend/target

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ScheduleTool 日程助手"
+  short_description: "通过 API 管理个人日程、查询操作记录，并定位本地运行错误"
+  default_prompt: "使用 $scheduletool 查询我的日程，并在修改前核对操作范围。"

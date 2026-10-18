@@ -1,0 +1,11 @@
+ARG JAVA_IMAGE=mcr.microsoft.com/openjdk/jdk:21-ubuntu
+FROM ${JAVA_IMAGE}
+WORKDIR /app
+RUN groupadd --gid 10001 schedule && useradd --uid 10001 --gid 10001 --system --home-dir /app schedule \
+    && mkdir /app/logs && chown schedule:schedule /app/logs
+COPY --chown=schedule:schedule app.jar /app/app.jar
+USER schedule
+ENV APP_BIND=0.0.0.0 APP_PORT=8080 APP_CONTEXT=/schedule LOG_DIR=/app/logs
+EXPOSE 8080
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /schedule/ HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && read -r status <&3 && [[ "$status" == HTTP/*" 200"* ]]'
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-jar", "/app/app.jar"]

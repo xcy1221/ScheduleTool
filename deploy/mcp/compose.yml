@@ -1,0 +1,86 @@
+name: scheduletool
+services:
+  scheduletool:
+    image: scheduletool:${APP_VERSION:?required}
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+      args:
+        JAVA_IMAGE: ${JAVA_IMAGE:?required}
+    restart: unless-stopped
+    environment:
+      DB_URL: ${DB_URL:?required}
+      DB_USER: ${DB_USER:?required}
+      DB_PASSWORD: ${DB_PASSWORD:?required}
+      APP_USERNAME: ${APP_USERNAME:-admin}
+      APP_PASSWORD_HASH: ${APP_PASSWORD_HASH:?required}
+      COOKIE_SECURE: "true"
+      SPRING_FLYWAY_ENABLED: "false"
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/run/secrets/application-mcp.properties
+      MCP_ENABLED: "true"
+      LOG_DIR: /app/logs
+    volumes:
+      - scheduletool-logs:/app/logs
+      - ./private/application-mcp.properties:/run/secrets/application-mcp.properties:ro,Z
+      - ./private/signing.jwk:/run/secrets/signing.jwk:ro,Z
+      - ./private/api-password.txt:/run/secrets/api-password.txt:ro,Z
+    networks:
+      caddy-proxy: {}
+      mysql_default:
+        ipv4_address: ${MYSQL_IPV4:?required}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 768m
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+  scheduletool-tunnel:
+    image: scheduletool-tunnel:${TUNNEL_VERSION:?required}
+    build:
+      context: .
+      dockerfile: Dockerfile.tunnel
+      args:
+        JAVA_IMAGE: ${JAVA_IMAGE:?required}
+    command: [run, --config, /etc/scheduletool-tunnel.yaml, --ca-bundle, /etc/scheduletool-caddy.crt]
+    restart: unless-stopped
+    depends_on:
+      scheduletool:
+        condition: service_healthy
+    volumes:
+      - ./tunnel.yaml:/etc/scheduletool-tunnel.yaml:ro,Z
+      - ./caddy-root.crt:/etc/scheduletool-caddy.crt:ro,Z
+      - ./private/tunnel-runtime-key:/run/secrets/tunnel-runtime-key:ro,Z
+    networks:
+      caddy-proxy:
+        ipv4_address: ${TUNNEL_PROXY_IPV4:?required}
+      mihomo-proxy:
+        ipv4_address: ${TUNNEL_EGRESS_IPV4:?required}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 128m
+    healthcheck:
+      test: [CMD, /usr/local/bin/tunnel-client, health, --port, "18083", --require-control-plane-poll]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  caddy-proxy:
+    external: true
+    name: ${PROXY_NETWORK:-caddy-proxy}
+  mysql_default:
+    external: true
+    name: ${MYSQL_NETWORK:-mysql_default}
+  mihomo-proxy:
+    external: true
+    name: ${EGRESS_NETWORK:-mihomo-proxy}
+volumes:
+  scheduletool-logs:

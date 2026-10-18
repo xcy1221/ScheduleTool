@@ -1,0 +1,15 @@
+ARG JAVA_IMAGE
+FROM ${JAVA_IMAGE} AS trust
+RUN mkdir -p /tunnel-runtime/bin /tunnel-runtime/lib64 /tunnel-runtime/lib/x86_64-linux-gnu \
+    && cp -L /bin/bash /bin/sleep /tunnel-runtime/bin/ \
+    && cp -L /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libtinfo.so.6 /tunnel-runtime/lib/x86_64-linux-gnu/ \
+    && cp -L /lib64/ld-linux-x86-64.so.2 /tunnel-runtime/lib64/
+FROM scratch
+COPY --from=trust /tunnel-runtime/ /
+COPY --from=trust /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --chmod=0555 tunnel-client /usr/local/bin/tunnel-client
+COPY --chmod=0555 cloudflared /usr/local/bin/cloudflared
+COPY tunnel-licenses/ /licenses/
+COPY --chmod=0555 tunnel-entrypoint.sh /usr/local/bin/tunnel-entrypoint.sh
+USER 10001:10001
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/tunnel-entrypoint.sh"]

@@ -1,0 +1,26 @@
+# Insert inside the existing LAN route, before its @outside rejection.
+# Replace REPLACE_WITH_DOCKER_GATEWAY_IP with the verified source IP; OAuth authenticates callers.
+@schedule_mcp_transport {
+    remote_ip REPLACE_WITH_DOCKER_GATEWAY_IP
+    path /schedule/mcp
+    method POST
+}
+handle @schedule_mcp_transport {
+    reverse_proxy scheduletool:8080
+}
+@schedule_oauth_metadata {
+    remote_ip REPLACE_WITH_DOCKER_GATEWAY_IP
+    path /schedule/.well-known/oauth-protected-resource /schedule/.well-known/oauth-protected-resource/mcp /schedule/.well-known/oauth-authorization-server /schedule/oauth2/jwks
+    method GET
+}
+handle @schedule_oauth_metadata {
+    reverse_proxy scheduletool:8080
+}
+@schedule_oauth_token {
+    remote_ip REPLACE_WITH_DOCKER_GATEWAY_IP
+    path /schedule/oauth2/token /schedule/oauth2/revoke
+    method POST
+}
+handle @schedule_oauth_token {
+    reverse_proxy scheduletool:8080
+}

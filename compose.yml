@@ -1,0 +1,38 @@
+name: scheduletool
+services:
+  scheduletool:
+    build: .
+    image: scheduletool:${APP_VERSION:-0.2.0}
+    restart: unless-stopped
+    environment:
+      DB_URL: ${DB_URL:?required}
+      DB_USER: ${DB_USER:?required}
+      DB_PASSWORD: ${DB_PASSWORD:?required}
+      APP_USERNAME: ${APP_USERNAME:-admin}
+      APP_PASSWORD_HASH: ${APP_PASSWORD_HASH:?required}
+      COOKIE_SECURE: "true"
+      SPRING_FLYWAY_ENABLED: "false"
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      LOG_DIR: /app/logs
+    volumes: [scheduletool-logs:/app/logs]
+    networks:
+      caddy-proxy: {}
+      mysql_default:
+        ipv4_address: ${MYSQL_IPV4:?required}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 768m
+    logging:
+      driver: local
+      options: { max-size: "10m", max-file: "3" }
+networks:
+  caddy-proxy:
+    external: true
+    name: ${PROXY_NETWORK:-caddy-proxy}
+  mysql_default:
+    external: true
+    name: ${MYSQL_NETWORK:-mysql_default}
+volumes:
+  scheduletool-logs:
