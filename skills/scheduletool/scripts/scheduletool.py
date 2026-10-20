@@ -12,7 +12,8 @@ from uuid import UUID
 
 _REPOSITORY = Path(__file__).resolve().parents[3]
 DEFAULT_HOME = _REPOSITORY if (_REPOSITORY / 'backend/pom.xml').is_file() else Path.cwd()
-FIELDS = {'title', 'description', 'start', 'end', 'allDay', 'timeZone', 'recurrence', 'repeatUntil', 'color', 'version'}
+FIELDS = {'title', 'description', 'start', 'end', 'allDay', 'timeZone', 'recurrence', 'repeatUntil', 'color', 'version', 'todoId', 'todoVersion'}
+TODO_FIELDS = {'title', 'description', 'expectedEffect', 'implementationIdea', 'status', 'pinned', 'version'}
 SOURCES = ('CODEX', 'CHATGPT', 'WEB', 'OTHER', 'UNKNOWN')
 
 
@@ -71,7 +72,7 @@ class Client:
         if self.token:
             headers['Authorization'] = 'Bearer ' + self.token
         route = path.partition('?')[0]
-        if method in ('POST', 'PUT', 'DELETE') and (route == '/api/v1/events' or route.startswith('/api/v1/events/')):
+        if method in ('POST', 'PUT', 'DELETE') and any(route == base or route.startswith(base + '/') for base in ('/api/v1/events', '/api/v1/todos')):
             headers['X-Schedule-Source'] = self.source
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode('utf-8')
         req = request.Request(self.base + path, data=data, headers=headers, method=method)
@@ -133,6 +134,38 @@ def mutate(client, args, body):
         raise Failure('操作结果未确认；先查询日程和服务端审计，不要直接重试。') from None
     return {'requestId': client.request_id, 'auditSequence': client.audit_sequence,
             'declaredSource': client.source, 'result': result}
+
+
+def todo_operation(client, args, body):
+    command = args.command
+    path = '/api/v1/todos'
+    if command == 'todo-list':
+        return client.call(path + '?' + parse.urlencode({k: v for k, v in {
+            'q': args.q, 'status': args.status, 'includeCompleted': str(args.include_completed).lower(),
+            'unscheduled': str(args.unscheduled).lower()}.items() if v is not None}))
+    if command not in ('todo-list', 'todo-create'):
+        UUID(args.id)
+        path = ('/api/v1/events/' if command == 'link' else path + '/') + args.id
+        client.call(path)
+    if command == 'todo-get':
+        return client.call(path)
+    if command == 'todo-delete':
+        if not args.confirm_delete:
+            raise Failure('删除待办须先确认关联系列及例外的影响，并指定 --confirm-delete 和 --mode。')
+        path += '?' + parse.urlencode({'version': args.version, 'mode': args.mode})
+    if command == 'link':
+        path += '/todo'
+        body = {'todoId': args.todo_id, 'todoVersion': args.todo_version, 'version': args.version}
+        if args.todo_id:
+            UUID(args.todo_id)
+            client.call('/api/v1/todos/' + args.todo_id)
+    try:
+        result = client.call(path, {'todo-create': 'POST', 'todo-update': 'PUT', 'todo-delete': 'DELETE', 'link': 'PUT'}[command], body)
+    except Failure as exc:
+        raise Failure(f'{exc}；先核对待办、日程和审计，不自动重试。', exc.status) from None
+    except (OSError, ValueError):
+        raise Failure('操作结果未确认；先核对待办、日程和审计，不自动重试。') from None
+    return {'result': result, 'requestId': client.request_id, 'auditSequence': client.audit_sequence, 'declaredSource': client.source}
 
 
 def verify(client, home, save=False):
@@ -207,6 +240,18 @@ def parser():
     history.add_argument('--request-id')
     sub.add_parser('verify')
     sub.add_parser('checkpoint')
+    listing = sub.add_parser('todo-list')
+    listing.add_argument('--q')
+    listing.add_argument('--status', choices=['PENDING', 'IN_PROGRESS', 'COMPLETED', 'SHELVED'])
+    listing.add_argument('--include-completed', action='store_true')
+    listing.add_argument('--unscheduled', action='store_true')
+    sub.add_parser('todo-get').add_argument('id')
+    sub.add_parser('todo-create').add_argument('--input', type=Path, required=True)
+    update = sub.add_parser('todo-update'); update.add_argument('id'); update.add_argument('--input', type=Path, required=True)
+    delete = sub.add_parser('todo-delete'); delete.add_argument('id'); delete.add_argument('--version', type=int, required=True)
+    delete.add_argument('--mode', choices=['KEEP_EVENTS', 'DELETE_EVENTS'], required=True); delete.add_argument('--confirm-delete', action='store_true')
+    link = sub.add_parser('link'); link.add_argument('id'); link.add_argument('--todo-id', required=True, help='空字符串解除关联')
+    link.add_argument('--version', type=int, required=True); link.add_argument('--todo-version', type=int)
     return p
 
 
@@ -218,11 +263,11 @@ def run(args):
             raise Failure('--tail 范围为 1 至 1000。')
         return {name: tail(args.home / '.local' / name, args.tail) for name in ('logs/runtime.log', 'app-error.log')}
     body = None
-    if args.command in ('create', 'update'):
+    if args.command in ('create', 'update', 'todo-create', 'todo-update'):
         body = json.loads(args.input.read_text(encoding='utf-8-sig'))
-        if not isinstance(body, dict) or set(body) - FIELDS:
+        if not isinstance(body, dict) or set(body) - (TODO_FIELDS if args.command.startswith('todo-') else FIELDS):
             raise Failure('正文须为日程 JSON 对象，且只包含 API 支持的字段。')
-        if args.command == 'create':
+        if args.command in ('create', 'todo-create'):
             body.setdefault('version', 0)
         if type(body.get('version')) is not int or body['version'] < 0:
             raise Failure('正文必须提供非负整数 version；修改须使用已查询到的版本号。')
@@ -237,6 +282,10 @@ def run(args):
     url = args.url or settings.get('url', 'http://127.0.0.1:18080/schedule')
     ca_file = args.ca_file or settings.get('caFile')
     with Client(url, *credentials(args.home), source=args.source, ca_file=ca_file) as client:
+        if args.command.startswith('todo-') or args.command == 'link':
+            if args.command not in ('todo-list', 'todo-get'):
+                verify(client, args.home)
+            return todo_operation(client, args, body)
         if args.command == 'status':
             me = client.call('/api/v1/auth/me')
             return {key: me[key] for key in ('username', 'expiresAt')}

@@ -35,11 +35,20 @@ class McpTools {
         fields.put("recurrence",choices("无重复、每天或每周。","NONE","DAILY","WEEKLY"));
         fields.put("repeatUntil",Map.of("type",List.of("string","null"),"description","重复截止日期 YYYY-MM-DD，包含该日；null 表示无截止。"));
         fields.put("color",Map.of("type","string","pattern","^#[0-9a-fA-F]{6}$"));
+        fields.put("todoId",string("可选待办 ID；null/省略保留原关联，空字符串解除系列关联；OCCURRENCE 不修改关联。"));
+        fields.put("todoVersion",integer("新关联待办须提供已查询的待办版本。",0,Integer.MAX_VALUE));
         if(update) fields.put("version",integer("先查询，再使用返回的系列版本；冲突后重新查询，不能盲重试。",0,Integer.MAX_VALUE));
         return Map.of("type","object","properties",fields,"required",update?List.of("title","start","version"):List.of("title","start"),"additionalProperties",false);
     }
     List<SyncToolSpecification> definitions() {
         return List.of(
+            define("todo_list","搜索待办、关联系列和下次有效安排。默认排除已完成；unscheduled 为无后续或进行中的有效安排。",
+                Map.of("q",string("搜索标题、说明、预期效果和思路"),"status",choices("状态","PENDING","IN_PROGRESS","COMPLETED","SHELVED"),"includeCompleted",Map.of("type","boolean"),"unscheduled",Map.of("type","boolean")),List.of(),false),
+            define("todo_get","读取待办、版本、全部关联系列与下次有效安排。",Map.of("todoId",string("待办 UUID")),List.of("todoId"),false),
+            define("todo_create","创建待办与想法，仅标题必填。",Map.of("todo",todo(false),"source",SOURCE),List.of("todo","source"),true),
+            define("todo_update","编辑、置顶、完成或重开待办。完成保留日程，日程结束不自动完成待办。先查询最新版本，409 不自动重试。",Map.of("todoId",string("待办 UUID"),"todo",todo(true),"source",SOURCE),List.of("todoId","todo","source"),true),
+            define("todo_delete","先查询并确认删除影响。KEEP_EVENTS 保留日程并解除关联；DELETE_EVENTS 删除全部关联系列及所有单次例外。版本保护关联集合。",Map.of("todoId",string("待办 UUID"),"version",integer("待办最新版本",0,Integer.MAX_VALUE),"mode",choices("明确删除方式","KEEP_EVENTS","DELETE_EVENTS"),"source",SOURCE),List.of("todoId","version","mode","source"),true),
+            define("schedule_link_todo","关联或解除整个日程系列的待办，不清除单次例外。todoId 空字符串解除；新关联需要 todoVersion。",Map.of("seriesId",ID,"todoId",string("待办 UUID 或空字符串解除"),"todoVersion",integer("新关联待办版本",0,Integer.MAX_VALUE),"version",integer("日程最新版本",0,Integer.MAX_VALUE),"source",SOURCE),List.of("seriesId","todoId","version","source"),true),
             define("schedule_status","查看连接状态、当前上海时间和默认时区，用于解释相对日期。",Map.of(),List.of(),false),
             define("schedule_list","按左闭右开时间范围查询展开日程，最多 366 天；修改前先查询 seriesId、version 和原 occurrenceDate。",
                 Map.of("from",string("开始本地时间 YYYY-MM-DDTHH:mm:ss"),"to",string("结束本地时间 YYYY-MM-DDTHH:mm:ss，不包含该时刻")),List.of("from","to"),false),
@@ -53,6 +62,14 @@ class McpTools {
             define("schedule_history","查询服务自动生成的日程审计记录；可按系列或 requestId 回溯，序号分页。",
                 Map.of("seriesId",ID,"requestId",string("请求 ID"),"after",integer("起始序号，不包含，默认 0。",0,Integer.MAX_VALUE),"limit",integer("最多条数，默认 20。",1,200)),List.of(),false),
             define("schedule_verify","校验服务器审计哈希链；链内一致不代表第三方存证，库外校验点由本机 skill 管理。",Map.of(),List.of(),false));
+    }
+    private static Map<String,Object> todo(boolean update) {
+        var fields=new LinkedHashMap<String,Object>();
+        fields.put("title",Map.of("type","string","minLength",1,"maxLength",200));
+        for(String field:List.of("description","expectedEffect","implementationIdea")) fields.put(field,Map.of("type","string","maxLength",4000));
+        fields.put("status",choices("状态","PENDING","IN_PROGRESS","COMPLETED","SHELVED"));fields.put("pinned",Map.of("type","boolean"));
+        if(update) fields.put("version",integer("待办最新版本",0,Integer.MAX_VALUE));
+        return Map.of("type","object","properties",fields,"required",update?List.of("title","version"):List.of("title"),"additionalProperties",false);
     }
     private SyncToolSpecification define(String name,String description,Map<String,Object> properties,List<String> required,boolean write) {
         var scopes=write?List.of(McpOAuth.READ,McpOAuth.WRITE):List.of(McpOAuth.READ);
@@ -81,7 +98,7 @@ class McpTools {
         return McpSchema.CallToolResult.builder().content(List.of(new McpSchema.TextContent(detail))).structuredContent(Map.of("status",status,"detail",detail)).isError(true).build();
     }
     private Object execute(String name,Map<String,Object> args) {
-        boolean write=Set.of("schedule_create","schedule_update","schedule_delete").contains(name);
+        boolean write=Set.of("schedule_create","schedule_update","schedule_delete","todo_create","todo_update","todo_delete","schedule_link_todo").contains(name);
         String source=write?(args.get("source") instanceof String value?value:""):"UNKNOWN";
         if(write && !Set.of("CODEX","CHATGPT","OTHER","UNKNOWN").contains(source)) throw new ApiError.Failure(400,"来源标签不正确");
         String path="/api/v1/events",method="GET"; Object body=null;
@@ -91,7 +108,7 @@ class McpTools {
             if(!to.isAfter(from) || Duration.between(from,to).compareTo(Duration.ofDays(366))>0) throw new ApiError.Failure(400,"查询范围须大于 0 且不超过 366 天");
             path+="?from="+encode(from.toString())+"&to="+encode(to.toString());
         }
-        if(write && !name.equals("schedule_create")) {
+        if(Set.of("schedule_update","schedule_delete").contains(name)) {
             String scope=(String)args.get("scope");
             if(!Set.of("SERIES","OCCURRENCE").contains(scope)) throw new ApiError.Failure(400,"请明确操作某一次还是整个系列");
             path+="?scope="+scope;
@@ -116,6 +133,26 @@ class McpTools {
         }
         if(name.equals("schedule_verify")) path="/api/v1/audit-logs/verify";
         if(name.equals("schedule_status")) path="/api/v1/auth/me";
+        if(name.startsWith("todo_")) {
+            path="/api/v1/todos";
+            if(!Set.of("todo_list","todo_create").contains(name)) path+="/"+UUID.fromString((String)args.get("todoId"));
+            if(name.equals("todo_list")) {
+                var params=new ArrayList<String>();
+                for(String key:List.of("q","status","includeCompleted","unscheduled")) if(args.containsKey(key)) params.add(key+"="+encode(String.valueOf(args.get(key))));
+                if(!params.isEmpty()) path+="?"+String.join("&",params);
+            }
+            if(name.equals("todo_create")||name.equals("todo_update")) {
+                if(!(args.get("todo") instanceof Map<?,?> value)) throw new ApiError.Failure(400,"todo 必须是待办对象");
+                @SuppressWarnings("unchecked") var fields=(Map<String,Object>)todo(name.equals("todo_update")).get("properties");
+                if(!fields.keySet().containsAll(value.keySet())) throw new ApiError.Failure(400,"待办包含未知字段");
+                body=value;method=name.equals("todo_create")?"POST":"PUT";
+            }
+            if(name.equals("todo_delete")) { method="DELETE";path+="?version="+number(args,"version",0,Integer.MAX_VALUE)+"&mode="+encode((String)args.get("mode")); }
+        }
+        if(name.equals("schedule_link_todo")) {
+            path="/api/v1/events/"+UUID.fromString((String)args.get("seriesId"))+"/todo";method="PUT";
+            var link=new LinkedHashMap<String,Object>();for(String key:List.of("todoId","todoVersion","version")) if(args.containsKey(key)) link.put(key,args.get(key));body=link;
+        }
         final String target=path,verb=method; final Object input=body;
         return api.session(session->{
             if(write) {

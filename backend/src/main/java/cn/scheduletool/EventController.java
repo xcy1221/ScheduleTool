@@ -19,6 +19,8 @@ public class EventController {
     public EventService.Event get(@PathVariable String id) { return service.get(id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Operation(summary="新增日程，创建时 version 填 0")
     public EventService.Event create(@Valid @RequestBody EventInput in) { return service.create(in); }
+    @PutMapping("/{id}/todo") @Operation(summary="关联或解除整个日程系列的待办",description="version 为日程版本；新关联须提供 todoVersion；todoId 为空字符串时解除。不会清除重复例外。")
+    public EventService.Event link(@PathVariable String id,@Valid @RequestBody EventService.LinkInput in) { return service.link(id,in); }
     @PutMapping("/{id}") @Operation(summary="修改日程", description="scope=SERIES 修改整个系列并重置所有单次例外；scope=OCCURRENCE 必填 occurrenceDate，保留原重复规则。version 用于冲突检查。")
     public EventService.Event update(@PathVariable String id,@RequestParam(defaultValue="SERIES") EventService.Scope scope,
         @RequestParam(required=false) LocalDate occurrenceDate,@Valid @RequestBody EventInput in) { return service.update(id,scope,occurrenceDate,in); }

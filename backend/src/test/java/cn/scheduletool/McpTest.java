@@ -135,7 +135,7 @@ class McpTest {
         String token=tokens("schedule:read schedule:write").path("access_token").asText();
         var init=rpc(token,"initialize",Map.of("protocolVersion","2025-06-18","capabilities",Map.of(),"clientInfo",Map.of("name","test","version","1")));
         assertEquals("ScheduleTool",init.path("result").path("serverInfo").path("name").asText());
-        assertEquals(8,rpc(token,"tools/list",Map.of()).path("result").path("tools").size());
+        assertEquals(14,rpc(token,"tools/list",Map.of()).path("result").path("tools").size());
         assertFalse(tool(token,"schedule_status",Map.of()).toString().contains("csrfToken"));
         var created=tool(token,"schedule_create",Map.of("event",event("2026-11-01T09:00:00","DAILY"),"source","CHATGPT"));
         assertFalse(created.path("isError").asBoolean(),created.toString());
@@ -160,10 +160,30 @@ class McpTest {
     @Test void readScopeCannotWriteAndOriginAndOversizeAreRejected() throws Exception {
         String token=tokens("schedule:read").path("access_token").asText();
         assertEquals(403,tool(token,"schedule_create",Map.of("event",event("2026-11-01T09:00:00","NONE"),"source","CHATGPT")).path("structuredContent").path("status").asInt());
+        assertEquals(403,tool(token,"todo_create",Map.of("todo",Map.of("title","不允许写"),"source","CHATGPT")).path("structuredContent").path("status").asInt());
         var request=HttpRequest.newBuilder(URI.create(BASE+"/mcp")).header("Origin","https://evil.example").header("Authorization","Bearer "+token).POST(HttpRequest.BodyPublishers.ofString("{}"));
         assertEquals(403,browser.send(request.build(),HttpResponse.BodyHandlers.ofString()).statusCode());
         assertEquals(413,send("POST","/mcp"," ".repeat(65537),token).statusCode());
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM schedule_events",Integer.class));
+    }
+    @Test void todoMcpLinkCompleteReopenAndDelete() throws Exception {
+        String token=tokens("schedule:read schedule:write").path("access_token").asText();
+        var created=tool(token,"todo_create",Map.of("todo",Map.of("title","MCP 待办"),"source","CODEX"));
+        assertFalse(created.path("isError").asBoolean(),created.toString());
+        String id=created.path("structuredContent").path("result").path("id").asText();
+        var event=event("2098-11-01T09:00:00","DAILY");event.put("todoId",id);event.put("todoVersion",0);
+        var scheduled=tool(token,"schedule_create",Map.of("event",event,"source","CODEX"));
+        assertFalse(scheduled.path("isError").asBoolean(),scheduled.toString());
+        String series=scheduled.path("structuredContent").path("result").path("id").asText();
+        assertEquals(1,tool(token,"todo_get",Map.of("todoId",id)).path("structuredContent").path("result").path("schedules").size());
+        assertFalse(tool(token,"todo_update",Map.of("todoId",id,"todo",Map.of("title","MCP 待办","status","COMPLETED","version",1),"source","CODEX")).path("isError").asBoolean());
+        assertEquals("COMPLETED",tool(token,"schedule_get",Map.of("seriesId",series)).path("structuredContent").path("result").path("todoStatus").asText());
+        assertFalse(tool(token,"todo_update",Map.of("todoId",id,"todo",Map.of("title","MCP 待办","status","PENDING","version",2),"source","CODEX")).path("isError").asBoolean());
+        assertFalse(tool(token,"schedule_link_todo",Map.of("seriesId",series,"todoId","","version",0,"source","CODEX")).path("isError").asBoolean());
+        assertFalse(tool(token,"todo_delete",Map.of("todoId",id,"version",4,"mode","KEEP_EVENTS","source","CODEX")).path("isError").asBoolean());
+        assertEquals(0,tool(token,"todo_list",Map.of()).path("structuredContent").path("result").size());
+        assertTrue(tool(token,"schedule_verify",Map.of()).path("structuredContent").path("result").path("valid").asBoolean());
+        assertEquals("CODEX",tool(token,"schedule_history",Map.of("seriesId",id)).path("structuredContent").path("result").get(0).path("data").path("declaredSource").asText());
     }
     @Test void codesAreSingleUsePkceAndResourceAreBoundAndRefreshRotates() throws Exception {
         String code=code("schedule:read schedule:write");

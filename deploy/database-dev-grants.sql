@@ -8,4 +8,6 @@ GRANT SELECT, UPDATE(id) ON scheduletool_dev.audit_lock TO 'scheduletool_app'@'R
 GRANT SELECT, INSERT, UPDATE, DELETE ON scheduletool_dev.oauth2_authorization TO 'scheduletool_app'@'REPLACE_WITH_APP_HOST';
 GRANT SELECT, INSERT, UPDATE, DELETE ON scheduletool_dev.oauth2_authorization_consent TO 'scheduletool_app'@'REPLACE_WITH_APP_HOST';
 GRANT SELECT ON scheduletool_dev.flyway_schema_history TO 'scheduletool_app'@'REPLACE_WITH_APP_HOST';
+GRANT SELECT, INSERT, UPDATE, DELETE ON scheduletool_dev.todos TO 'scheduletool_app'@'REPLACE_WITH_APP_HOST';
+GRANT SELECT, INSERT, UPDATE, DELETE ON scheduletool_dev.todo_events TO 'scheduletool_app'@'REPLACE_WITH_APP_HOST';
 REVOKE IF EXISTS SELECT, INSERT, UPDATE, DELETE ON scheduletool_dev.* FROM 'scheduletool_app'@'REPLACE_WITH_APP_HOST';

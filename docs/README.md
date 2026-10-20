@@ -17,7 +17,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `backend/` | Java 服务、Flyway V1—V3 和后端测试 |
+| `backend/` | Java 服务、Flyway V1—V4 和后端测试 |
 | `frontend/` | Vue 页面、主题、日历与依赖锁文件 |
 | `deploy/` | 首装 SQL、开发授权、预构建 JAR 部署模板 |
 | `deploy/mcp/` | 可选 MCP/OAuth 与隧道的容器模板 |

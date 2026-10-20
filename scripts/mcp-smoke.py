@@ -15,6 +15,7 @@ HOME = Path(__file__).resolve().parents[1]
 PRIVATE = HOME / '.local/mcp'
 STATE = PRIVATE / 'smoke-state.json'
 BASE = 'http://127.0.0.1:18081/schedule'
+RESOURCE = BASE + '/mcp'
 CALLBACK = 'http://127.0.0.1:18082/callback'
 VERIFIER = secrets.token_urlsafe(48)
 
@@ -65,7 +66,7 @@ def login():
     state = secrets.token_urlsafe(24)
     query = parse.urlencode({'client_id': 'scheduletool-chatgpt', 'redirect_uri': CALLBACK, 'response_type': 'code',
                              'scope': 'schedule:read schedule:write', 'state': state, 'code_challenge': challenge,
-                             'code_challenge_method': 'S256', 'resource': BASE + '/mcp'})
+                             'code_challenge_method': 'S256', 'resource': RESOURCE})
     status, headers, html = call('/oauth2/authorize?' + query)
     location = headers.get('Location', '')
     if status == 302 and not location.startswith(CALLBACK + '?'):
@@ -82,7 +83,7 @@ def login():
     parameters = parse.parse_qs(parse.urlsplit(location).query)
     check(parameters.get('state') == [state] and 'code' in parameters, 'OAuth state 或授权码校验失败')
     status, _, raw = call('/oauth2/token', {'grant_type': 'authorization_code', 'code': parameters['code'][0],
-                         'redirect_uri': CALLBACK, 'code_verifier': VERIFIER, 'resource': BASE + '/mcp'}, form=True, client_auth=True)
+                         'redirect_uri': CALLBACK, 'code_verifier': VERIFIER, 'resource': RESOURCE}, form=True, client_auth=True)
     check(status == 200, 'OAuth 换取令牌失败')
     return json.loads(raw)
 
@@ -116,7 +117,7 @@ def run(phase):
         save(state)
         token = state['tokens']['access_token']
         rpc(token, 'initialize', {'protocolVersion': '2025-06-18', 'capabilities': {}, 'clientInfo': {'name': 'ScheduleTool smoke', 'version': '1'}})
-        check(len(rpc(token, 'tools/list', {})['tools']) == 8, '工具数量不正确')
+        check(len(rpc(token, 'tools/list', {})['tools']) == 14, '工具数量不正确')
         marker = secrets.token_hex(4)
         events = [
             {'title': 'MCP 验收每日 ' + marker, 'start': '2026-11-01T09:00:00', 'recurrence': 'DAILY', 'repeatUntil': '2026-11-03'},
@@ -137,13 +138,13 @@ def run(phase):
         state['baseline'] = [e for e in listing(token) if e['seriesId'] in state['ids']]
         check(len(state['baseline']) == 9, '时间点、重复、全天或跨天展开结果不正确')
         save(state)
-        print('OAuth 与 8 个 MCP 工具已验证；5 个验收系列已保存。请重启本地实例后运行 after。')
+        print('OAuth 与 14 个 MCP 工具发现已验证；5 个验收系列已保存。请重启本地实例后运行 after。')
         return
     state = json.loads(STATE.read_text(encoding='utf-8'))
     check(state['url'] == BASE and 'baseline' in state, '验收状态不完整或目标地址不符，停止操作')
     # Refresh the persisted grant after restart, proving that authorization and signing keys survived.
     status, _, raw = call('/oauth2/token', {'grant_type': 'refresh_token', 'refresh_token': state['tokens']['refresh_token'],
-                          'resource': BASE + '/mcp'}, form=True, client_auth=True)
+                          'resource': RESOURCE}, form=True, client_auth=True)
     check(status == 200, '重启后 OAuth 授权未保留')
     state['tokens'] = json.loads(raw)
     save(state)

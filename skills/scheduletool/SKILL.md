@@ -5,6 +5,15 @@ description: 通过 REST API 管理 ScheduleTool 日程，查询统一操作审�
 
 # ScheduleTool 日程助手
 
+## TODO 与关联（V4）
+
+- MCP 新增 `todo_list/get/create/update/delete` 与 `schedule_link_todo`；权限仍用既有 schedule:read/write。先查待办/日程最新版本，写后回查并报告 requestId/auditSequence。
+- 客户端：`todo-list [--q 文本] [--status PENDING|IN_PROGRESS|COMPLETED|SHELVED] [--include-completed] [--unscheduled]`、`todo-get ID`、`todo-create --input 文件`、`todo-update ID --input 文件`。
+- 待办 JSON 仅标题必填，可含 description、expectedEffect、implementationIdea、status、pinned；编辑须带 version。完成/重开只修改整体状态，不删除安排；日程结束不自动完成待办。
+- 日程创建可带 todoId/todoVersion 原子关联。`link 系列ID --todo-id 待办ID --todo-version 版本 --version 日程版本` 关联整个系列，不清除例外；解除时 `--todo-id ''`。旧客户端省略 todoId 会保留关联。
+- `todo-delete ID --version 版本 --mode KEEP_EVENTS|DELETE_EVENTS --confirm-delete`：先查询并明确说明全部关联系列及单次例外的影响，按用户所选方式保留解除关联或一并删除。不要猜删除方式。409/超时先核对，不自动重试。
+- 未排期指无后续或进行中的有效安排，包含已取消或已结束安排。详情返回全部系列及 next，有效排期随取消、改期和系列变更更新。审计 entityType=TODO 时 seriesId 为待办 ID，旧哈希链继续兼容。
+
 存在已连接的 ScheduleTool MCP 工具时优先使用它们，先调用 `schedule_status` 核对服务和上海时间；否则使用下述本机脚本。MCP 登录由连接授权处理，不向工具传密码或 token。
 
 ## 本机入口
@@ -35,7 +44,7 @@ python scripts/scheduletool.py --help
 
 - 具备本机执行环境且已获准使用私密配置的 ChatGPT，可运行同一脚本并填写 `--source CHATGPT`。云端 ChatGPT 不能假定能读取本机文件、已安装的 skill 或访问内网地址。
 - 项目已完成 MCP 和 OAuth 上线，并提供独立本地验收环境；是否可用以当前已连接工具为准。未连接时不能假装能调用，也不能把本机通过测试说成 ChatGPT 已连通。配置与状态见项目 `docs/mcp.md`。
-- 工具为 `schedule_status/list/get/create/update/delete/history/verify`（名称均带 `schedule_` 前缀）。写操作的 `source` 由执行 AI 填写；401 走连接授权，403 核对读取/写入范围，409 重新查询。写入成功后调用查询工具回查，报告审计回执。
+- 日程工具为 `schedule_status/list/get/create/update/delete/history/verify`，另有上述 TODO 与关联工具。写操作的 `source` 由执行 AI 填写；401 走连接授权，403 核对读取/写入范围，409 重新查询。写入成功后调用查询工具回查，报告审计回执。
 - MCP 适配服务从私密文件读取应用凭据并调用 REST API；OAuth 令牌与后端 API 令牌分开，不作为工具参数或返回值。不在日程操作中自动部署、改授权配置或开放网络。
 
 ## 日程操作

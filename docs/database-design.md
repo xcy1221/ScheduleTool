@@ -108,3 +108,8 @@ V3 使用 Spring Authorization Server JDBC 标准结构：`oauth2_authorization`
 OAuth 表包含敏感令牌，不具备审计表的仅追加限制；备份须按凭据保护。业务 API 的 auth_tokens 仍只保存 token 哈希，与 OAuth 令牌分开。MCP 不把 OAuth token 透传给业务 API，而是内部登录后调用 REST、结束即退出。
 
 实现依据：[V1 SQL](../backend/src/main/resources/db/migration/V1__initial.sql)、[V2 SQL](../backend/src/main/resources/db/migration/V2__audit.sql)、[V3 SQL](../backend/src/main/resources/db/migration/V3__mcp_oauth.sql)、[审计服务](../backend/src/main/java/cn/scheduletool/AuditService.java)、[MCP 配置](mcp.md)。
+# V4：待办与关联
+
+追加 `todos`（四个文本字段、四态、置顶、版本与时间戳）和 `todo_events`。后者以 `series_id` 为主键，外键指向待办与日程；日程删除级联解除关联，待办删除由业务事务明确选择保留或删除所有关联系列。新关联、改期及删除会递增待办版本，以保护删除确认时的关联集合。
+
+V1—V3 内容不变。V4 checksum 为 `-1327294631`。生产仍由维护身份迁移，应用仅有两张新表的 DML 权限，不授予审计更新/删除或 DDL。

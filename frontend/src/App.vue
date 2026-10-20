@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -8,7 +8,8 @@ import luxonPlugin from '@fullcalendar/luxon3'
 import zhCn from '@fullcalendar/core/locales/zh-cn'
 import type { CalendarOptions, DatesSetArg, EventClickArg, DateSelectArg } from '@fullcalendar/core'
 import { DateTime } from 'luxon'
-import { api, ApiFailure, setCsrf, type ScheduleEvent, type Session, type Repeat } from './api'
+import { api, ApiFailure, setCsrf, todoStatusText, type Todo, type TodoDetail, type ScheduleEvent, type Session, type Repeat } from './api'
+import TodoPanel from './TodoPanel.vue'
 import ThemeToggle from './ThemeToggle.vue'
 
 const zone = 'Asia/Shanghai'
@@ -17,10 +18,16 @@ const today = now().toISODate()!
 const user = ref<Session | null>(null), checking = ref(true), busy = ref(false), loading = ref(false)
 const login = reactive({ username: 'admin', password: '' }), loginError = ref(''), error = ref(''), toast = ref('')
 const calendar = ref<InstanceType<typeof FullCalendar>>()
+const page = ref<'calendar' | 'todo'>('calendar'), todos = ref<TodoDetail[]>([]), todoLoading = ref(false), selectedTodo = ref(''), sidebarUnscheduled = ref(false)
+const sidebarTodos = computed(() => todos.value.filter(d => d.todo.status !== 'COMPLETED' && (!sidebarUnscheduled.value || !d.next)))
+async function loadTodos() { todoLoading.value = true; try { todos.value = await api<TodoDetail[]>('/api/v1/todos?includeCompleted=true') } catch(e) { error.value = (e as Error).message } finally { todoLoading.value = false } }
+function showTodo(id: string) { selectedTodo.value = id; page.value = 'todo'; editor.value = false }
+function scheduleTodo(todo: Todo) { newEvent(focusDate.value); form.title = todo.title; form.todoId = todo.id }
+async function showCalendar(e: ScheduleEvent) { page.value = 'calendar'; focusDate.value = e.start.slice(0, 10); await nextTick(); calendar.value?.getApi().gotoDate(focusDate.value); openEvent({ ...e, seriesId: e.seriesId || e.id, occurrenceDate: e.occurrenceDate || e.start.slice(0, 10) }) }
 const view = ref('dayGridMonth'), heading = ref(''), focusDate = ref(today), jumpDate = ref(today)
 const events = ref<ScheduleEvent[]>([]), editor = ref(false), original = ref<ScheduleEvent | null>(null)
 const scope = ref<'OCCURRENCE' | 'SERIES'>('OCCURRENCE'), deleteConfirm = ref(false), formError = ref('')
-const form = reactive({ title: '', description: '', date: today, time: '09:00', endDate: today, endTime: '10:00', kind: 'point', recurrence: 'NONE' as Repeat, repeatUntil: '', color: '#256f62', version: 0 })
+const form = reactive({ title: '', description: '', date: today, time: '09:00', endDate: today, endTime: '10:00', kind: 'point', recurrence: 'NONE' as Repeat, repeatUntil: '', color: '#256f62', version: 0, todoId: '' })
 const views = [{ id: 'dayGridMonth', label: '月视图', icon: '▦' }, { id: 'timeGridWeek', label: '周视图', icon: '▥' }, { id: 'timeGridDay', label: '日视图', icon: '▤' }]
 const repeatText = { NONE: '不重复', DAILY: '每天重复', WEEKLY: '每周重复' }
 const displayDate = computed(() => DateTime.fromISO(focusDate.value).setLocale('zh-CN').toFormat('M月d日 cccc'))
@@ -29,7 +36,9 @@ const agenda = computed(() => events.value.filter(e => {
   return start === focusDate.value || (start < focusDate.value && !!end && (e.allDay ? end > focusDate.value : e.end! > `${focusDate.value}T00:00:00`))
 }).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start)))
 function notice(text: string) { toast.value = text; window.setTimeout(() => { toast.value = '' }, 3000) }
-function expired() { user.value = null; editor.value = false; events.value = []; setCsrf('') }
+function expired() { user.value = null; editor.value = false; events.value = []; todos.value = []; setCsrf('') }
+watch(user, u => { if (u) loadTodos() })
+watch(page, async p => { if (p === 'calendar') { await nextTick(); calendar.value?.getApi().updateSize() } })
 async function signIn() {
   busy.value = true; loginError.value = ''
   try { const s = await api<Session>('/api/v1/auth/login', 'POST', login); setCsrf(s.csrfToken); user.value = s; login.password = '' }
@@ -61,7 +70,7 @@ const options: CalendarOptions = {
       const to = DateTime.fromJSDate(info.end).setZone(zone).toFormat("yyyy-MM-dd'T'HH:mm:ss")
       const data = await api<ScheduleEvent[]>(`/api/v1/events?from=${from}&to=${to}`)
       events.value = data
-      success(data.map(e => ({ id: e.id, title: e.title, start: e.start, end: e.end, allDay: e.allDay, backgroundColor: e.color, borderColor: e.color, textColor: eventTextColor(e.color), extendedProps: { event: e } })))
+      success(data.map(e => ({ id: e.id, title: `${e.todoStatus ? '[' + todoStatusText[e.todoStatus] + '] ' : ''}${e.title}`, classNames: e.todoStatus === 'COMPLETED' ? ['todo-completed-event'] : [], start: e.start, end: e.end, allDay: e.allDay, backgroundColor: e.color, borderColor: e.color, textColor: eventTextColor(e.color), extendedProps: { event: e } })))
     } catch (e) { error.value = (e as Error).message; failure(e as Error) }
     finally { loading.value = false }
   },
@@ -79,16 +88,16 @@ function changeView(id: string) { calendar.value?.getApi().changeView(id, focusD
 function move(dir: number) { const c = calendar.value?.getApi(); if (dir < 0) c?.prev(); else c?.next() }
 function goToday() { focusDate.value = today; calendar.value?.getApi().today() }
 function jump() { if (jumpDate.value) { focusDate.value = jumpDate.value; calendar.value?.getApi().gotoDate(jumpDate.value) } }
-function refresh() { calendar.value?.getApi().refetchEvents() }
+function refresh() { calendar.value?.getApi().refetchEvents(); loadTodos() }
 function newEvent(date = today, time?: string) {
   original.value = null; scope.value = 'SERIES'; deleteConfirm.value = false; formError.value = ''
-  Object.assign(form, { title: '', description: '', date, time: time || '09:00', endDate: date, endTime: time ? DateTime.fromISO(`${date}T${time}`).plus({ hours: 1 }).toFormat('HH:mm') : '10:00', kind: 'point', recurrence: 'NONE', repeatUntil: '', color: '#256f62', version: 0 })
+  Object.assign(form, { title: '', description: '', date, time: time || '09:00', endDate: date, endTime: time ? DateTime.fromISO(`${date}T${time}`).plus({ hours: 1 }).toFormat('HH:mm') : '10:00', kind: 'point', recurrence: 'NONE', repeatUntil: '', color: '#256f62', version: 0, todoId: '' })
   editor.value = true; nextTick(() => document.querySelector<HTMLInputElement>('#event-title')?.focus())
 }
 function fill(e: ScheduleEvent) {
   Object.assign(form, { title: e.title, description: e.description, date: e.start.slice(0, 10), time: e.start.slice(11, 16),
     endDate: e.end ? (e.allDay ? DateTime.fromISO(e.end).minus({ days: 1 }).toISODate() : e.end.slice(0, 10)) : e.start.slice(0, 10),
-    endTime: e.end?.slice(11, 16) || '10:00', kind: e.allDay ? 'allDay' : e.end ? 'range' : 'point', recurrence: e.recurrence, repeatUntil: e.repeatUntil || '', color: e.color, version: e.version })
+    endTime: e.end?.slice(11, 16) || '10:00', kind: e.allDay ? 'allDay' : e.end ? 'range' : 'point', recurrence: e.recurrence, repeatUntil: e.repeatUntil || '', color: e.color, version: e.version, todoId: e.todoId || '' })
 }
 function openEvent(e: ScheduleEvent) { original.value = e; scope.value = e.recurrence === 'NONE' ? 'SERIES' : 'OCCURRENCE'; fill(e); formError.value = ''; deleteConfirm.value = false; editor.value = true }
 async function switchScope() {
@@ -107,10 +116,10 @@ async function save() {
     const allDay = form.kind === 'allDay'
     const start = `${form.date}T${allDay ? '00:00' : form.time}:00`
     const end = allDay ? `${DateTime.fromISO(form.endDate).plus({ days: 1 }).toISODate()}T00:00:00` : form.kind === 'range' ? `${form.endDate}T${form.endTime}:00` : null
-    const payload = { title: form.title, description: form.description, start, end, allDay, timeZone: zone, recurrence: form.recurrence, repeatUntil: form.repeatUntil || null, color: form.color, version: form.version }
+    const payload = { title: form.title, description: form.description, start, end, allDay, timeZone: zone, recurrence: form.recurrence, repeatUntil: form.repeatUntil || null, color: form.color, version: form.version, todoId: scope.value === 'OCCURRENCE' ? undefined : form.todoId, todoVersion: todos.value.find(d => d.todo.id === form.todoId)?.todo.version }
     await api(original.value ? `/api/v1/events/${original.value.seriesId}?${query()}` : '/api/v1/events', original.value ? 'PUT' : 'POST', payload)
     editor.value = false; refresh(); notice(original.value ? '日程已更新' : '日程已添加')
-  } catch (e) { formError.value = (e as Error).message; if (e instanceof ApiFailure && e.status === 409) refresh() }
+    } catch (e) { formError.value = (e as Error).message; if (e instanceof ApiFailure && e.status === 409) refresh() }
   finally { busy.value = false }
 }
 async function remove() {
@@ -129,6 +138,14 @@ function eventTextColor(color: string) {
   const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16) / 255)
     .map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
   return 0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]! > 0.179 ? '#000000' : '#ffffff'
+}
+async function linkTodo() {
+  if (!original.value) return
+  busy.value = true; formError.value = ''
+  try {
+    const e = await api<ScheduleEvent>(`/api/v1/events/${original.value.seriesId}/todo`, 'PUT', { todoId: form.todoId, todoVersion: todos.value.find(d => d.todo.id === form.todoId)?.todo.version, version: form.version })
+    original.value = { ...original.value, todoId: e.todoId, todoStatus: e.todoStatus, version: e.version }; form.version = e.version; refresh(); notice('整个系列的待办关联已更新')
+  } catch(e) { formError.value = (e as Error).message; if (e instanceof ApiFailure && e.status === 409) refresh() } finally { busy.value = false }
 }
 function escape(event: KeyboardEvent) { if (event.key === 'Escape' && !busy.value) editor.value = false }
 onMounted(async () => {
@@ -153,23 +170,30 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
   <div v-else class="app-shell">
     <aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">日</span><span>日程<small>SCHEDULETOOL</small></span></a>
       <button class="primary add-button" @click="newEvent()"><span>＋</span> 新建日程</button>
-      <div class="nav-label">我的日历</div><nav aria-label="日历视图"><button v-for="v in views" :key="v.id" :class="{ active: view === v.id }" @click="changeView(v.id)"><span>{{ v.icon }}</span>{{ v.label }}</button></nav>
+      <div class="page-switch"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></div>
+      <div class="nav-label">我的日历</div><nav aria-label="日历视图"><button v-for="v in views" :key="v.id" :class="{ active: view === v.id }" @click="page = 'calendar'; changeView(v.id)"><span>{{ v.icon }}</span>{{ v.label }}</button></nav>
       <section class="agenda"><div class="agenda-heading"><span>{{ displayDate }}</span><span class="count">{{ agenda.length }}</span></div>
         <p v-if="!agenda.length" class="empty-agenda">这一天还没有安排。<br><button @click="newEvent(focusDate)">留一点时间给重要的事 ↗</button></p>
-        <button v-for="e in agenda" :key="e.id" class="agenda-event" @click="openEvent(e)"><i :style="{ background: e.color }"></i><div><strong>{{ e.title }}</strong><small>{{ eventTime(e) }}</small><small v-if="e.recurrence !== 'NONE'">↻ {{ repeatText[e.recurrence] }}</small></div></button>
+        <button v-for="e in agenda" :key="e.id" class="agenda-event" @click="openEvent(e)"><i :style="{ background: e.color }"></i><div><strong>{{ e.title }}</strong><small>{{ eventTime(e) }}</small><small v-if="e.todoStatus">TODO · {{ todoStatusText[e.todoStatus] }}</small><small v-if="e.recurrence !== 'NONE'">↻ {{ repeatText[e.recurrence] }}</small></div></button>
       </section>
+      <section class="sidebar-todos"><div class="agenda-heading"><button @click="page = 'todo'">未完成 TODO ↗</button><span class="count">{{ sidebarTodos.length }}</span></div><label class="todo-unscheduled"><input v-model="sidebarUnscheduled" type="checkbox">仅尚未排期</label><div v-for="d in sidebarTodos" :key="d.todo.id" class="sidebar-todo"><button @click="showTodo(d.todo.id)">{{ d.todo.title }}<small>{{ todoStatusText[d.todo.status] }}{{ d.next ? ' · ' + d.next.start.slice(5, 16).replace('T', ' ') : ' · 未排期' }}</small></button><button :aria-label="'安排 ' + d.todo.title + ' 到当前日期'" @click="scheduleTodo(d.todo)">＋</button></div><p v-if="!sidebarTodos.length" class="field-hint">没有符合条件的事项</p></section>
       <footer><span class="zone-dot"></span> 上海时间 · UTC+8<div><a href="/schedule/api/docs" target="_blank" rel="noopener">API 文档 ↗</a><button @click="signOut">退出登录</button></div></footer>
     </aside>
-    <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>我的日历</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div><ThemeToggle /></div></header>
-      <div class="calendar-card"><div class="toolbar"><div class="date-controls"><h2 :title="heading">{{ heading }}</h2><div class="arrows"><button aria-label="上一页" @click="move(-1)">‹</button><button aria-label="下一页" @click="move(1)">›</button></div><button class="today" @click="goToday">今天</button><input v-model="jumpDate" type="date" aria-label="跳转日期" @change="jump"></div><div class="view-switch"><button v-for="v in views" :key="v.id" :class="{ selected: view === v.id }" @click="changeView(v.id)">{{ v.label[0] }}</button></div></div>
+    <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>{{ page === 'calendar' ? '我的日历' : 'TODO · 待办与想法' }}</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div><ThemeToggle /></div></header>
+      <nav class="mobile-page-switch" aria-label="主视图"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></nav>
+      <div v-if="error" class="banner" role="alert">{{ error }} <button @click="refresh">重试</button></div>
+      <TodoPanel v-if="page === 'todo'" :items="todos" :selected="selectedTodo" :loading="todoLoading" @select="selectedTodo = $event" @changed="refresh" @schedule="scheduleTodo" @calendar="showCalendar" />
+      <div v-show="page === 'calendar'" class="calendar-card"><div class="toolbar"><div class="date-controls"><h2 :title="heading">{{ heading }}</h2><div class="arrows"><button aria-label="上一页" @click="move(-1)">‹</button><button aria-label="下一页" @click="move(1)">›</button></div><button class="today" @click="goToday">今天</button><input v-model="jumpDate" type="date" aria-label="跳转日期" @change="jump"></div><div class="view-switch"><button v-for="v in views" :key="v.id" :class="{ selected: view === v.id }" @click="changeView(v.id)">{{ v.label[0] }}</button></div></div>
         <div v-if="error" class="banner" role="alert">{{ error }} <button @click="refresh">重试</button></div><div v-if="loading" class="loading-bar" aria-label="正在加载"></div>
         <div class="calendar-wrap"><FullCalendar ref="calendar" :options="options" /></div>
-      </div><div class="calendar-hint"><span>点击日期或选取时间，添加安排；点击日程查看和编辑。</span><span>Asia/Shanghai</span></div>
+      </div><div v-if="page === 'calendar'" class="calendar-hint"><span>点击日期或选取时间，添加安排；点击日程查看和编辑。</span><span>Asia/Shanghai</span></div>
     </main>
     <div v-if="toast" class="toast" role="status">✓ {{ toast }}</div>
     <div v-if="editor" class="modal-backdrop" @mousedown.self="!busy && (editor = false)"><section class="editor" role="dialog" aria-modal="true" aria-labelledby="editor-heading"><header><div><span class="eyebrow">{{ original ? '日程详情' : '安排一件事' }}</span><h2 id="editor-heading">{{ original ? '编辑日程' : '新建日程' }}</h2></div><button class="close" aria-label="关闭" :disabled="busy" @click="editor = false">×</button></header>
       <form @submit.prevent="save"><div class="form-body"><template v-if="original && original.recurrence !== 'NONE'"><label>操作范围<select v-model="scope" :disabled="busy" @change="switchScope"><option value="OCCURRENCE">仅本次 · {{ original.occurrenceDate }}</option><option value="SERIES">整个重复系列</option></select></label><p class="scope-note">{{ scope === 'SERIES' ? '修改整个系列会重置所有已修改或删除的单次安排。下面显示系列最初的时间。' : '仅修改这一次，其他日期与重复规则保持不变。' }}</p></template>
         <label>做什么 <span class="required">*</span><input id="event-title" v-model="form.title" placeholder="给这件事起个名字" required maxlength="200" :disabled="busy"></label>
+        <label>关联 TODO<select v-model="form.todoId" :disabled="busy" @change="!original && !form.title && (form.title = todos.find(d => d.todo.id === form.todoId)?.todo.title || '')"><option value="">不关联待办</option><option v-for="d in todos" :key="d.todo.id" :value="d.todo.id">{{ d.todo.title }} · {{ todoStatusText[d.todo.status] }}</option></select></label>
+        <div class="todo-link-actions"><button v-if="original" type="button" :disabled="busy" @click="linkTodo">更新整个系列的关联</button><button v-if="form.todoId" type="button" @click="showTodo(form.todoId)">查看 TODO ↗</button></div><p class="field-hint">关联适用于整个系列，独立更新关联不会清除单次例外。标题与执行备注可独立编辑。</p>
         <label>时间类型<select v-model="form.kind" :disabled="busy"><option value="point">时间点 · 不设结束时间</option><option value="range">时间段 · 开始与结束</option><option value="allDay">全天 · 按日期安排</option></select></label>
         <div class="form-row"><label>{{ form.kind === 'allDay' ? '开始日期' : '开始' }}<input v-model="form.date" type="date" min="1900-01-01" max="2199-12-31" required :disabled="busy"></label><label v-if="form.kind !== 'allDay'">时间<input v-model="form.time" type="time" required :disabled="busy"></label></div>
         <div v-if="form.kind !== 'point'" class="form-row"><label>{{ form.kind === 'allDay' ? '最后一天（含当天）' : '结束' }}<input v-model="form.endDate" type="date" :min="form.date" max="2199-12-31" required :disabled="busy"></label><label v-if="form.kind === 'range'">时间<input v-model="form.endTime" type="time" required :disabled="busy"></label></div>

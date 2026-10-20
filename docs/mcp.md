@@ -6,7 +6,7 @@
 
 使用官方 Java MCP SDK 1.1.5 和 Spring Authorization Server，入口为 `/schedule/mcp`，无会话 Streamable HTTP。每次调用校验签名、issuer、audience、有效期和撤销状态。
 
-工具为 `schedule_status`、`schedule_list`、`schedule_get`、`schedule_create`、`schedule_update`、`schedule_delete`、`schedule_history`、`schedule_verify`。读取需 `schedule:read`；写入同时需 `schedule:read schedule:write`。写操作复用 REST 业务规则与事务审计。
+工具共 14 个：原有 `schedule_status/list/get/create/update/delete/history/verify`，以及 `todo_list/get/create/update/delete`、`schedule_link_todo`。读取需 `schedule:read`；写入同时需 `schedule:read schedule:write`。写操作复用 REST 业务规则、版本与事务审计。工具参数见实时 tools/list；日程 event 支持 todoId/todoVersion，待办删除须明确 mode。
 
 OAuth 使用授权码 + PKCE S256、精确回调地址、预注册客户端和 `client_secret_basic`。访问令牌 15 分钟、刷新令牌 7 天且轮换、授权码 2 分钟且只能使用一次。`source` 为 AI 自报标签，不代表可信身份。
 

@@ -45,6 +45,14 @@ public class AuditService {
         var result=new LinkedHashMap<String,Object>();
         result.put("series",rows.getFirst());
         result.put("exceptions",db.query("SELECT * FROM event_exceptions WHERE series_id=? ORDER BY occurrence_date",this::snapshotRow,id));
+        result.put("todoLinks",db.query("SELECT * FROM todo_events WHERE series_id=?",this::snapshotRow,id));
+        return result;
+    }
+    private Map<String,Object> todoSnapshot(String id) {
+        var rows=db.query("SELECT * FROM todos WHERE id=?",this::snapshotRow,id);
+        if(rows.isEmpty()) return null;
+        var result=new LinkedHashMap<String,Object>();result.put("todo",rows.getFirst());
+        result.put("schedules",db.query("SELECT series_id FROM todo_events WHERE todo_id=? ORDER BY series_id",(rs,n)->rs.getString(1),id).stream().map(this::snapshot).toList());
         return result;
     }
     private Map<String,Object> snapshotRow(ResultSet rs,int n) throws SQLException {
@@ -65,13 +73,21 @@ public class AuditService {
     // Serialize before reading snapshots, so concurrent changes cannot fork the chain or mix snapshots.
     @Transactional(propagation=Propagation.MANDATORY)
     public <T> T change(String action,String id,EventService.Scope scope,LocalDate date,Supplier<T> work) {
+        return changeEntity(action,id,scope,date,false,work);
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public <T> T todoChange(String action,String id,Supplier<T> work) {
+        return changeEntity(action,id,EventService.Scope.SERIES,null,true,work);
+    }
+    private <T> T changeEntity(String action,String id,EventService.Scope scope,LocalDate date,boolean todo,Supplier<T> work) {
         if(db.queryForObject("SELECT id FROM audit_lock WHERE id=1 FOR UPDATE",Integer.class)==null)
             throw new IllegalStateException("审计锁缺失");
         var tail=db.query("SELECT * FROM audit_log ORDER BY sequence_id DESC LIMIT 1",this::row);
         long sequence=tail.isEmpty()?1:tail.getFirst().sequence()+1;
         String previous=tail.isEmpty()?GENESIS:tail.getFirst().hash();
         if(!tail.isEmpty() && !validRow(tail.getFirst())) throw new IllegalStateException("审计末条校验失败，停止写入");
-        var before=snapshot(id);
+        var before=todo?todoSnapshot(id):snapshot(id);
+        var affected=todo?db.query("SELECT series_id FROM todo_events WHERE todo_id=? ORDER BY series_id",(rs,n)->rs.getString(1),id):List.<String>of();
         T result=work.get();
         var attributes=RequestContextHolder.getRequestAttributes();
         var req=attributes instanceof ServletRequestAttributes s?s.getRequest():null;
@@ -79,7 +95,8 @@ public class AuditService {
         String requestId=req==null?UUID.randomUUID().toString():(String)req.getAttribute("requestId");
         if(requestId==null) requestId=UUID.randomUUID().toString();
         var data=new LinkedHashMap<String,Object>();
-        data.put("schemaVersion",2); data.put("sequence",sequence); data.put("seriesId",id);
+        data.put("schemaVersion",3); data.put("entityType",todo?"TODO":"EVENT"); data.put("sequence",sequence); data.put("seriesId",id);
+        if(todo) { data.put("todoId",id);data.put("affectedSeriesIds",affected);data.put("affectedSchedulesAfter",affected.stream().map(this::snapshot).toList()); }
         data.put("requestId",requestId); data.put("action",action); data.put("scope",scope.name());
         data.put("occurrenceDate",date==null?null:date.toString()); data.put("recordedAt",Instant.now().toString());
         data.put("actor",session==null?"internal":session.username());
@@ -88,7 +105,7 @@ public class AuditService {
         data.put("declaredSource",source!=null && Set.of("CODEX","CHATGPT","WEB","OTHER","UNKNOWN").contains(source)?source:
             req!=null && "cookie".equals(req.getAttribute("authentication"))?"WEB":"UNKNOWN");
         data.put("remoteAddress",req==null?null:req.getRemoteAddr());
-        data.put("before",before); data.put("after",snapshot(id));
+        data.put("before",before); data.put("after",todo?todoSnapshot(id):snapshot(id));
         String payload=encode(data),hash=Auth.hash(previous+"\n"+payload);
         db.update("INSERT INTO audit_log(sequence_id,series_id,request_id,payload,previous_hash,record_hash) VALUES(?,?,?,?,?,?)",
             sequence,id,requestId,payload,previous,hash);

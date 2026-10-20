@@ -13,8 +13,14 @@ public record EventInput(
     Repeat recurrence,
     LocalDate repeatUntil,
     @Pattern(regexp="#[0-9a-fA-F]{6}", message="颜色格式不正确") String color,
-    @NotNull(message="请提供版本号") @Min(0) Long version
+    @NotNull(message="请提供版本号") @Min(0) Long version,
+    @Size(max=36) String todoId,
+    @Min(0) Long todoVersion
 ) {
+    public EventInput(String title,String description,LocalDateTime start,LocalDateTime end,boolean allDay,String timeZone,
+        Repeat recurrence,LocalDate repeatUntil,String color,Long version) {
+        this(title,description,start,end,allDay,timeZone,recurrence,repeatUntil,color,version,null,null);
+    }
     public enum Repeat { NONE, DAILY, WEEKLY }
     public EventInput normalized() {
         return normalized(false);
@@ -32,6 +38,6 @@ public record EventInput(
         LocalDate until = r == Repeat.NONE ? null : repeatUntil;
         if (until != null && (until.isBefore(start.toLocalDate()) || until.getYear() > 2199))
             throw new ApiError.Failure(400, "重复截止日不能早于开始日，且不能超过 2199 年");
-        return new EventInput(title.strip(), description == null ? "" : description, start.withNano(0), end == null ? null : end.withNano(0), allDay, zone, r, until, color == null ? "#256f62" : color, version);
+        return new EventInput(title.strip(), description == null ? "" : description, start.withNano(0), end == null ? null : end.withNano(0), allDay, zone, r, until, color == null ? "#256f62" : color, version,todoId,todoVersion);
     }
 }

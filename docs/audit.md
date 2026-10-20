@@ -44,3 +44,8 @@ python scripts/scheduletool.py logs --tail 50
 本地原实例运行日志为 `.local/logs/runtime.log`，MCP 独立验收实例为 `.local/mcp/logs/runtime.log`；按日或 10MB 轮转，最多 30 天、合计 300MB。正式服务将 `/app/logs` 挂到专用日志卷，已部署验证；线上日志使用既有管理入口查看。
 
 请求日志不记录正文、查询参数、密码、Cookie、Bearer 或 CSRF token；仅记录路径、状态、耗时、请求 ID 与审计序号。业务审计快照包含日程内容，按私密数据管理，不提交 Git。审计表无自动删除策略；备份须覆盖 audit_log 与 audit_lock，未来归档需同时设计链与校验点的连续性。
+# V4 兼容扩展
+
+新审计载荷使用 schemaVersion=3，保留原 `seriesId/requestId/sequence` 索引和哈希算法。旧载荷字节不变，V1/V2 审计及库外校验点继续有效。`entityType` 区分 TODO/EVENT；待办审计中的 `seriesId` 为待办 ID，可沿用历史查询筛选。
+
+待办删除记录所有关联系列及例外的前快照、受影响 ID 和操作后的系列快照。待办、关联、日程与审计共用事务和审计锁；审计写入失败时全部回滚。来源仍为调用者自报。

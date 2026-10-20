@@ -89,6 +89,27 @@ class SkillClientTest(unittest.TestCase):
             self.connect('CODEX\r\nInjected: value')
         self.assertEqual('CHATGPT', client.parser().parse_args(['--source', 'CHATGPT', 'status']).source)
 
+    def test_todo_writes_and_link_send_source_and_return_receipts(self):
+        with self.connect('CODEX') as api:
+            args = client.parser().parse_args(['todo-create', '--input', 'unused.json'])
+            result = client.todo_operation(api, args, {'title': '想法'})
+            self.assertEqual('4', result['auditSequence'])
+            self.assertEqual('test-request', result['requestId'])
+            api.call('/api/v1/todos/test-id', 'PUT', {})
+            api.call('/api/v1/events/test-id/todo', 'PUT', {})
+            api.call('/api/v1/todos/test-id?version=0&mode=KEEP_EVENTS', 'DELETE')
+        writes = [x for x in Handler.received_sources if x[2]]
+        self.assertEqual(['CODEX']*4, [x[2] for x in writes])
+
+    def test_todo_conflict_is_not_retried_and_delete_requires_choice(self):
+        Handler.fail_write = True
+        with self.connect('CODEX') as api:
+            with self.assertRaises(client.Failure):
+                client.todo_operation(api, client.parser().parse_args(['todo-create', '--input', 'unused']), {'title': 'test'})
+        self.assertEqual(1, Handler.calls.count('/api/v1/todos'))
+        with self.assertRaises(SystemExit):
+            client.parser().parse_args(['todo-delete', '00000000-0000-0000-0000-000000000000', '--version', '0', '--confirm-delete'])
+
     def test_configured_target_is_used_when_url_not_provided(self):
         with TemporaryDirectory() as folder:
             home = Path(folder)

@@ -50,3 +50,14 @@ OpenAPI JSON：`GET /schedule/api/openapi`，Swagger UI：`/schedule/api/docs`�
 审计接口 `GET /audit-logs` 与 `GET /audit-logs/verify` 同样需要鉴权。成功日程写入自动保存完整前后快照，响应头含 `X-Audit-Sequence`，所有 API 响应含 `X-Request-ID`。分页、库外校验点及限制见 [日志与回溯](audit.md)。
 
 新版写请求可带 `X-Schedule-Source: CODEX|CHATGPT|WEB|OTHER|UNKNOWN`，保存在审计 `data.declaredSource`，只作调用方自报标签。Cookie 缺省记 WEB，其他缺省或无效值记 UNKNOWN；不改写既有审计。MCP 工具和 OAuth 接入见 [MCP 说明](mcp.md)；当前版本已发布。
+# TODO 与日历联动（V4）
+
+- `GET /api/v1/todos?q=&status=&includeCompleted=false&unscheduled=false`：默认未完成，搜索四个文本字段，置顶优先。状态为 `PENDING/IN_PROGRESS/COMPLETED/SHELVED`；未排期指无后续或进行中的有效安排。
+- `POST /api/v1/todos`：仅 `title` 必填（1—200 字）。可选 `description/expectedEffect/implementationIdea`（各 4000 字）、`status/pinned`。
+- `GET /api/v1/todos/{id}`：`{todo,schedules:[{event,next}],next}`，包含全部关联系列与下一次有效安排；取消、改期、截止与跨天均参与计算。
+- `PUT /api/v1/todos/{id}`：完整编辑对象与最新 `version`；完成/重开只改变整体状态，保留安排。
+- `DELETE /api/v1/todos/{id}?version=&mode=KEEP_EVENTS|DELETE_EVENTS`：明确选择保留并解除所有关联，或删除关联系列及全部单次例外。先查询并确认影响范围。关联集合变化也递增待办版本，过期返回 409。
+- 日程创建/系列编辑可携带 `todoId/todoVersion`，在同一事务内保存关联。新关联需要最新待办版本。`todoId` 缺省或 null 保留既有关联，空字符串解除；旧客户端不受影响。
+- `PUT /api/v1/events/{id}/todo`：`{version,todoId,todoVersion}` 单独更新整个系列关联，不重置单次例外；空字符串解除，新增关联须提供 `todoVersion`。单次编辑不改变关联。
+
+日程返回 `todoId/todoStatus`，一个系列最多属于一个待办。创建页面默认带入待办标题，随后各自独立。日程删除保留待办；执行结束不自动完成目标。写操作均支持 `X-Schedule-Source`、审计回执与事务回滚，409/超时后先重新查询，不盲重试。

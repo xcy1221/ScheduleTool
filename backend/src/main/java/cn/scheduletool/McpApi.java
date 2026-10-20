@@ -44,7 +44,7 @@ class McpApi {
             try {
                 var builder=HttpRequest.newBuilder(URI.create(base+path)).timeout(Duration.ofSeconds(15)).header("Content-Type","application/json");
                 if(!token.isEmpty()) builder.header("Authorization","Bearer "+token);
-                if(!"GET".equals(method) && path.startsWith("/api/v1/events")) builder.header("X-Schedule-Source",source);
+                if(!"GET".equals(method) && (path.startsWith("/api/v1/events") || path.startsWith("/api/v1/todos"))) builder.header("X-Schedule-Source",source);
                 builder.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
                 var response=http.send(builder.build(),HttpResponse.BodyHandlers.ofInputStream());
                 byte[] bytes;
