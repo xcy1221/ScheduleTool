@@ -1,6 +1,6 @@
 -- V3 -> V4；先备份并停止本项目。由维护身份执行，遇错停止，不用 --force。
 USE scheduletool;
-DELIMITER 
+DELIMITER $$
 CREATE PROCEDURE scheduletool_upgrade_todo_v4()
 SQL SECURITY INVOKER
 BEGIN
@@ -37,8 +37,8 @@ CREATE INDEX idx_todo_events_todo ON todo_events(todo_id);
     GRANT SELECT, INSERT, UPDATE, DELETE ON scheduletool.todo_events TO 'scheduletool_prod'@'REPLACE_WITH_APP_HOST';
     INSERT INTO flyway_schema_history(installed_rank,version,description,type,script,checksum,installed_by,execution_time,success)
       VALUES(4,'4','todos','SQL','V4__todos.sql',-1327294631,CURRENT_USER(),0,1);
-END
-CALL scheduletool_upgrade_todo_v4()
-DROP PROCEDURE scheduletool_upgrade_todo_v4
+END$$
+CALL scheduletool_upgrade_todo_v4()$$
+DROP PROCEDURE scheduletool_upgrade_todo_v4$$
 DELIMITER ;
 SELECT version,checksum,success FROM flyway_schema_history ORDER BY installed_rank;
