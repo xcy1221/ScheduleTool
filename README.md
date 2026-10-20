@@ -2,7 +2,7 @@
 
 个人中文日程工具，支持 TODO · 待办与想法及日历双向联动、月／周／日视图、全天与跨天、重复与单次例外，以及 REST API、MCP/OAuth 和事务审计。业务时区固定为 `Asia/Shanghai`。
 
-2026-10-18 已完成上线和测试，用户已确认。采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；前端资源打入同一个可运行 JAR。MCP 为可选功能，默认关闭。
+0.3.0 于 2026-10-20 完成上线与验收。采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；前端资源打入同一个可运行 JAR。MCP 为可选功能，默认关闭。
 
 ## 开始使用
 
