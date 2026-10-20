@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { api, ApiFailure, todoStatusText, type Todo, type TodoDetail, type TodoStatus, type ScheduleEvent } from './api'
-const props = defineProps<{ items: TodoDetail[]; selected: string; loading: boolean }>()
-const emit = defineEmits<{ select: [id: string]; changed: []; schedule: [todo: Todo]; calendar: [event: ScheduleEvent] }>()
-const q = ref(''), filter = ref('OPEN'), quick = ref(''), busy = ref(false), error = ref(''), deleting = ref(false), creating = ref(false)
+import { api, ApiFailure, todoStatusText, type Todo, type TodoDetail, type TodoStatus, type TodoFilter, type ScheduleEvent } from './api'
+const props = defineProps<{ items: TodoDetail[]; selected: string; loading: boolean; filter: TodoFilter }>()
+const emit = defineEmits<{ select: [id: string]; changed: []; schedule: [todo: Todo]; calendar: [event: ScheduleEvent]; 'update:filter': [filter: TodoFilter] }>()
+const q = ref(''), quick = ref(''), busy = ref(false), error = ref(''), deleting = ref(false), creating = ref(false)
+const filter = computed({ get: () => props.filter, set: value => emit('update:filter', value) })
 const draft = reactive({ title: '', description: '', expectedEffect: '', implementationIdea: '', status: 'PENDING' as TodoStatus, pinned: false, version: 0 })
 const detail = computed(() => props.items.find(d => d.todo.id === props.selected))
 const visible = computed(() => props.items.filter(d => {
@@ -13,10 +14,11 @@ const visible = computed(() => props.items.filter(d => {
 }).sort((a, b) => Number(b.todo.pinned) - Number(a.todo.pinned)))
 watch(() => props.selected, id => { if (id) creating.value = false; deleting.value = false; error.value = ''; if (detail.value) Object.assign(draft, detail.value.todo) }, { immediate: true })
 function begin() { creating.value = true; emit('select', ''); Object.assign(draft, { title: '', description: '', expectedEffect: '', implementationIdea: '', status: 'PENDING', pinned: false, version: 0 }); error.value = '' }
+defineExpose({ begin })
 async function createQuick() {
   if (!quick.value.trim() || busy.value) return
   busy.value = true; error.value = ''
-  try { const t = await api<Todo>('/api/v1/todos', 'POST', { title: quick.value }); quick.value = ''; emit('changed'); emit('select', t.id) }
+  try { const t = await api<Todo>('/api/v1/todos', 'POST', { title: quick.value }); quick.value = ''; filter.value = 'OPEN'; emit('changed'); emit('select', t.id) }
   catch (e) { error.value = (e as Error).message } finally { busy.value = false }
 }
 async function save() {
@@ -42,8 +44,7 @@ function reloadDraft() { if (detail.value) Object.assign(draft, detail.value.tod
   <section class="todo-workspace" :class="{ 'has-detail': selected || creating }">
     <div class="todo-list-pane">
       <form class="quick-todo" @submit.prevent="createQuick"><input v-model="quick" aria-label="一句话创建待办" placeholder="记下一件事或一个想法…" maxlength="200" required><button class="primary" :disabled="busy">添加</button></form>
-      <div class="todo-filters"><input v-model="q" type="search" aria-label="搜索待办" placeholder="搜索标题、说明与方案"><select v-model="filter" aria-label="待办筛选"><option value="OPEN">未完成</option><option value="UNSCHEDULED">尚未排期</option><option value="ALL">全部事项</option><option v-for="(label, value) in todoStatusText" :value="value" :key="value">{{ label }}</option></select></div>
-      <button class="todo-new" @click="begin">＋ 新建详细事项</button>
+      <div class="todo-filters"><input v-model="q" type="search" aria-label="搜索待办" placeholder="搜索标题、说明与方案"><select v-model="filter" aria-label="待办筛选" @change="emit('select', '')"><option value="OPEN">未完成</option><option value="UNSCHEDULED">尚未排期</option><option value="ALL">全部事项</option><option v-for="(label, value) in todoStatusText" :value="value" :key="value">{{ label }}</option></select></div>
       <p v-if="loading">正在加载待办…</p><p v-else-if="!visible.length" class="empty-agenda">这里还没有事项。</p>
       <button v-for="d in visible" :key="d.todo.id" class="todo-row" :class="{ selected: selected === d.todo.id, completed: d.todo.status === 'COMPLETED' }" @click="emit('select', d.todo.id)"><strong>{{ d.todo.pinned ? '⌃ ' : '' }}{{ d.todo.title }}</strong><span class="todo-meta">{{ todoStatusText[d.todo.status] }} · {{ d.schedules.length }} 条日程</span><small>{{ d.next ? `下次 ${d.next.start.replace('T', ' ').slice(0, 16)}` : '暂无有效安排' }}</small></button>
     </div>

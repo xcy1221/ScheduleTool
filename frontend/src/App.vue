@@ -8,7 +8,7 @@ import luxonPlugin from '@fullcalendar/luxon3'
 import zhCn from '@fullcalendar/core/locales/zh-cn'
 import type { CalendarOptions, DatesSetArg, EventClickArg, DateSelectArg } from '@fullcalendar/core'
 import { DateTime } from 'luxon'
-import { api, ApiFailure, setCsrf, todoStatusText, type Todo, type TodoDetail, type ScheduleEvent, type Session, type Repeat } from './api'
+import { api, ApiFailure, setCsrf, todoStatusText, type Todo, type TodoDetail, type TodoFilter, type ScheduleEvent, type Session, type Repeat } from './api'
 import TodoPanel from './TodoPanel.vue'
 import ThemeToggle from './ThemeToggle.vue'
 
@@ -19,9 +19,23 @@ const user = ref<Session | null>(null), checking = ref(true), busy = ref(false),
 const login = reactive({ username: 'admin', password: '' }), loginError = ref(''), error = ref(''), toast = ref('')
 const calendar = ref<InstanceType<typeof FullCalendar>>()
 const page = ref<'calendar' | 'todo'>('calendar'), todos = ref<TodoDetail[]>([]), todoLoading = ref(false), selectedTodo = ref(''), sidebarUnscheduled = ref(false)
-const sidebarTodos = computed(() => todos.value.filter(d => d.todo.status !== 'COMPLETED' && (!sidebarUnscheduled.value || !d.next)))
+const todoPanel = ref<InstanceType<typeof TodoPanel>>(), todoFilter = ref<TodoFilter>('OPEN')
+const openTodos = computed(() => todos.value.filter(d => d.todo.status !== 'COMPLETED'))
+const sidebarTodos = computed(() => openTodos.value.filter(d => !sidebarUnscheduled.value || !d.next))
+const todoFilters: { id: TodoFilter; label: string }[] = [
+  { id: 'OPEN', label: '未完成' }, { id: 'UNSCHEDULED', label: '尚未排期' }, { id: 'ALL', label: '全部事项' },
+  { id: 'PENDING', label: '待处理' }, { id: 'IN_PROGRESS', label: '进行中' }, { id: 'SHELVED', label: '已搁置' }, { id: 'COMPLETED', label: '已完成' }
+]
+function todoCount(filter: TodoFilter) {
+  if (filter === 'OPEN') return openTodos.value.length
+  if (filter === 'UNSCHEDULED') return openTodos.value.filter(d => !d.next).length
+  return filter === 'ALL' ? todos.value.length : todos.value.filter(d => d.todo.status === filter).length
+}
+function showTodoList(filter: TodoFilter = 'OPEN') { todoFilter.value = filter; selectedTodo.value = ''; page.value = 'todo' }
+async function newTodo() { page.value = 'todo'; todoFilter.value = 'OPEN'; await nextTick(); todoPanel.value?.begin() }
+function newItem() { if (page.value === 'todo') newTodo(); else newEvent(focusDate.value) }
 async function loadTodos() { todoLoading.value = true; try { todos.value = await api<TodoDetail[]>('/api/v1/todos?includeCompleted=true') } catch(e) { error.value = (e as Error).message } finally { todoLoading.value = false } }
-function showTodo(id: string) { selectedTodo.value = id; page.value = 'todo'; editor.value = false }
+function showTodo(id: string) { todoFilter.value = todos.value.find(d => d.todo.id === id)?.todo.status === 'COMPLETED' ? 'ALL' : 'OPEN'; selectedTodo.value = id; page.value = 'todo'; editor.value = false }
 function scheduleTodo(todo: Todo) { newEvent(focusDate.value); form.title = todo.title; form.todoId = todo.id }
 async function showCalendar(e: ScheduleEvent) { page.value = 'calendar'; focusDate.value = e.start.slice(0, 10); await nextTick(); calendar.value?.getApi().gotoDate(focusDate.value); openEvent({ ...e, seriesId: e.seriesId || e.id, occurrenceDate: e.occurrenceDate || e.start.slice(0, 10) }) }
 const view = ref('dayGridMonth'), heading = ref(''), focusDate = ref(today), jumpDate = ref(today)
@@ -169,20 +183,30 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
   </main>
   <div v-else class="app-shell">
     <aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">日</span><span>日程<small>SCHEDULETOOL</small></span></a>
-      <button class="primary add-button" @click="newEvent()"><span>＋</span> 新建日程</button>
-      <div class="page-switch"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></div>
-      <div class="nav-label">我的日历</div><nav aria-label="日历视图"><button v-for="v in views" :key="v.id" :class="{ active: view === v.id }" @click="page = 'calendar'; changeView(v.id)"><span>{{ v.icon }}</span>{{ v.label }}</button></nav>
-      <section class="agenda"><div class="agenda-heading"><span>{{ displayDate }}</span><span class="count">{{ agenda.length }}</span></div>
-        <p v-if="!agenda.length" class="empty-agenda">这一天还没有安排。<br><button @click="newEvent(focusDate)">留一点时间给重要的事 ↗</button></p>
-        <button v-for="e in agenda" :key="e.id" class="agenda-event" @click="openEvent(e)"><i :style="{ background: e.color }"></i><div><strong>{{ e.title }}</strong><small>{{ eventTime(e) }}</small><small v-if="e.todoStatus">TODO · {{ todoStatusText[e.todoStatus] }}</small><small v-if="e.recurrence !== 'NONE'">↻ {{ repeatText[e.recurrence] }}</small></div></button>
-      </section>
-      <section class="sidebar-todos"><div class="agenda-heading"><button @click="page = 'todo'">未完成 TODO ↗</button><span class="count">{{ sidebarTodos.length }}</span></div><label class="todo-unscheduled"><input v-model="sidebarUnscheduled" type="checkbox">仅尚未排期</label><div v-for="d in sidebarTodos" :key="d.todo.id" class="sidebar-todo"><button @click="showTodo(d.todo.id)">{{ d.todo.title }}<small>{{ todoStatusText[d.todo.status] }}{{ d.next ? ' · ' + d.next.start.slice(5, 16).replace('T', ' ') : ' · 未排期' }}</small></button><button :aria-label="'安排 ' + d.todo.title + ' 到当前日期'" @click="scheduleTodo(d.todo)">＋</button></div><p v-if="!sidebarTodos.length" class="field-hint">没有符合条件的事项</p></section>
+      <nav class="mode-switch" aria-label="工作区"><button :class="{ selected: page === 'calendar' }" :aria-pressed="page === 'calendar'" @click="page = 'calendar'"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></svg>日历</button><button :class="{ selected: page === 'todo' }" :aria-pressed="page === 'todo'" @click="page = 'todo'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 2 2 3-4m3 2h8M4 13h3m5 0h8M4 19h3m5 0h8"/></svg>TODO</button></nav>
+      <button class="primary add-button" @click="newItem"><span aria-hidden="true">＋</span>{{ page === 'calendar' ? '新建日程' : '新建待办' }}</button>
+      <div class="sidebar-context">
+        <template v-if="page === 'calendar'">
+          <section class="sidebar-section"><h2 class="sidebar-heading">日历视图</h2><nav class="calendar-views" aria-label="日历视图"><button v-for="v in views" :key="v.id" :class="{ active: view === v.id }" :aria-pressed="view === v.id" @click="changeView(v.id)">{{ v.label }}</button></nav></section>
+          <section class="agenda sidebar-card"><h2 class="sidebar-heading">当日安排</h2><div class="agenda-heading"><span>{{ displayDate }}</span><span v-if="agenda.length" class="count">{{ agenda.length }}</span></div>
+            <div v-if="!agenda.length" class="sidebar-empty"><p>当天暂无安排</p><button class="sidebar-text-action" @click="newEvent(focusDate)">＋ 添加日程</button></div>
+            <button v-for="e in agenda" :key="e.id" class="agenda-event" @click="openEvent(e)"><i :style="{ background: e.color }"></i><div><strong>{{ e.title }}</strong><small>{{ eventTime(e) }}</small><small v-if="e.todoStatus">TODO · {{ todoStatusText[e.todoStatus] }}</small><small v-if="e.recurrence !== 'NONE'">↻ {{ repeatText[e.recurrence] }}</small></div></button>
+          </section>
+          <section class="sidebar-planning sidebar-card"><div class="sidebar-section-header"><h2 class="sidebar-heading">待办排期</h2><button v-if="openTodos.length" class="sidebar-text-action" @click="showTodoList(sidebarUnscheduled ? 'UNSCHEDULED' : 'OPEN')">{{ sidebarTodos.length > 3 ? '全部 ' + sidebarTodos.length + ' 项' : '查看待办' }}</button></div>
+            <template v-if="openTodos.length"><div class="planning-switch" role="group" aria-label="排期待办筛选"><button :class="{ selected: !sidebarUnscheduled }" :aria-pressed="!sidebarUnscheduled" @click="sidebarUnscheduled = false">全部未完成</button><button :class="{ selected: sidebarUnscheduled }" :aria-pressed="sidebarUnscheduled" @click="sidebarUnscheduled = true">尚未排期</button></div>
+              <div v-for="d in sidebarTodos.slice(0, 3)" :key="d.todo.id" class="sidebar-todo"><button @click="showTodo(d.todo.id)"><strong>{{ d.todo.title }}</strong><small>{{ d.next ? '下次 ' + d.next.start.slice(5, 16).replace('T', ' ') : '尚未排期' }}</small></button><button class="schedule-todo" :aria-label="'安排 ' + d.todo.title + ' 到当前日期'" :title="'安排到 ' + focusDate" @click="scheduleTodo(d.todo)">＋</button></div>
+              <p v-if="!sidebarTodos.length" class="sidebar-empty-note">未完成事项都已排期</p>
+            </template><div v-else class="sidebar-empty"><p>{{ todoLoading ? '正在读取待办…' : '暂无未完成待办' }}</p><button v-if="!todoLoading" class="sidebar-text-action" @click="newTodo">＋ 记下一件事</button></div>
+          </section>
+        </template>
+        <section v-else class="sidebar-section"><h2 class="sidebar-heading">待办筛选</h2><nav class="todo-nav" aria-label="待办筛选"><button v-for="(f, index) in todoFilters" :key="f.id" :class="{ active: todoFilter === f.id, 'status-start': index === 3 }" :aria-pressed="todoFilter === f.id" @click="showTodoList(f.id)"><span>{{ f.label }}</span><span v-if="todoCount(f.id)" class="count">{{ todoCount(f.id) }}</span></button></nav></section>
+      </div>
       <footer><span class="zone-dot"></span> 上海时间 · UTC+8<div><a href="/schedule/api/docs" target="_blank" rel="noopener">API 文档 ↗</a><button @click="signOut">退出登录</button></div></footer>
     </aside>
     <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>{{ page === 'calendar' ? '我的日历' : 'TODO · 待办与想法' }}</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div><ThemeToggle /></div></header>
       <nav class="mobile-page-switch" aria-label="主视图"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></nav>
       <div v-if="error" class="banner" role="alert">{{ error }} <button @click="refresh">重试</button></div>
-      <TodoPanel v-if="page === 'todo'" :items="todos" :selected="selectedTodo" :loading="todoLoading" @select="selectedTodo = $event" @changed="refresh" @schedule="scheduleTodo" @calendar="showCalendar" />
+      <TodoPanel v-if="page === 'todo'" ref="todoPanel" v-model:filter="todoFilter" :items="todos" :selected="selectedTodo" :loading="todoLoading" @select="selectedTodo = $event" @changed="refresh" @schedule="scheduleTodo" @calendar="showCalendar" />
       <div v-show="page === 'calendar'" class="calendar-card"><div class="toolbar"><div class="date-controls"><h2 :title="heading">{{ heading }}</h2><div class="arrows"><button aria-label="上一页" @click="move(-1)">‹</button><button aria-label="下一页" @click="move(1)">›</button></div><button class="today" @click="goToday">今天</button><input v-model="jumpDate" type="date" aria-label="跳转日期" @change="jump"></div><div class="view-switch"><button v-for="v in views" :key="v.id" :class="{ selected: view === v.id }" @click="changeView(v.id)">{{ v.label[0] }}</button></div></div>
         <div v-if="error" class="banner" role="alert">{{ error }} <button @click="refresh">重试</button></div><div v-if="loading" class="loading-bar" aria-label="正在加载"></div>
         <div class="calendar-wrap"><FullCalendar ref="calendar" :options="options" /></div>

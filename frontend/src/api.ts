@@ -6,6 +6,7 @@ export interface ScheduleEvent {
   todoId?: string; todoStatus?: TodoStatus
 }
 export type TodoStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SHELVED'
+export type TodoFilter = 'OPEN' | 'UNSCHEDULED' | 'ALL' | TodoStatus
 export interface Todo { id: string; title: string; description: string; expectedEffect: string; implementationIdea: string; status: TodoStatus; pinned: boolean; version: number }
 export interface TodoDetail { todo: Todo; schedules: { event: ScheduleEvent; next?: ScheduleEvent }[]; next?: ScheduleEvent }
 export const todoStatusText: Record<TodoStatus, string> = { PENDING: '待处理', IN_PROGRESS: '进行中', COMPLETED: '已完成', SHELVED: '已搁置' }
