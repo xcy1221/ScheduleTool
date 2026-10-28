@@ -2,7 +2,7 @@
 
 个人中文日程工具，支持 TODO · 待办与想法及日历双向联动、月／周／日视图、全天与跨天、重复与单次例外，以及 REST API、MCP/OAuth 和事务审计。业务时区固定为 `Asia/Shanghai`。
 
-0.3.1 于 2026-10-20 完成侧栏优化、视觉验收与上线。采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；前端资源打入同一个可运行 JAR。MCP 为可选功能，默认关闭。
+采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；前端资源打入同一个可运行 JAR。MCP 为可选功能，默认关闭。
 
 ## 开始使用
 
@@ -10,7 +10,7 @@
 - [本地开发](docs/development.md)：环境配置、构建、运行和测试。
 - [MCP 接入](docs/mcp.md)：OAuth 配置、14 个工具与本地验收。
 - [维护与备份](docs/maintenance.md)：升级、重启、恢复和排障。
-- [文档索引与目录说明](docs/README.md)：文件用途和验证结果。
+- [文档索引与目录说明](docs/README.md)：文件用途和项目目录。
 
 ## 使用约定
 
@@ -22,5 +22,3 @@
 - 当前为单用户应用，不提供提醒推送和任务复盘。
 
 接口见 [API 文档](docs/api.md)，数据结构见 [数据库设计](docs/database-design.md)，审计能力与边界见 [日志说明](docs/audit.md)。[ScheduleTool skill](skills/scheduletool/SKILL.md) 提供 Python 标准库客户端。
-
-个人配置、账号、密钥、日程数据、运行日志及本机发布包存于忽略目录。公开前的核查结果见 [仓库整理记录](docs/repository.md)。

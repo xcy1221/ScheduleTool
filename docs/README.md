@@ -10,8 +10,6 @@
 | [数据库设计](database-design.md) | 表结构、迁移与凭据边界 |
 | [日志与回溯](audit.md) | 审计、权限和库外校验点 |
 | [验收清单](acceptance.md) | 后续版本的回归检查 |
-| [仓库发布说明](repository.md) | 公开内容、私密配置和提交约定 |
-| [验证结果](verification.md) | 当前完整版本的验证范围与限制 |
 
 ## 目录职责
 
@@ -24,7 +22,7 @@
 | `scripts/` | 本机构建、启停与 API/MCP 验证脚本 |
 | `skills/scheduletool/` | 日程助手及 Python 客户端 |
 | `tests/` | Python 客户端测试 |
-| `docs/` | 当前功能、部署、维护和验证文档 |
+| `docs/` | 功能、部署、维护和测试文档 |
 | `.local/` | 私密配置、运行数据和归档；不提交 Git |
 
 根目录 `Dockerfile` + `compose.yml` 用于源码构建；`deploy/compose.yml` 用于独立发布包中的已测试 JAR；MCP 发布包采用 `deploy/mcp/compose.yml`。三份 Compose 是不同入口，不叠加使用。

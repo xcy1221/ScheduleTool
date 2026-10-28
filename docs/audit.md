@@ -4,7 +4,7 @@
 
 网页、Swagger UI、skill 和其他 REST 客户端共用日程服务的事务钩子。每次成功的新增、修改、删除自动追加审计：UTC 时间、登录用户、认证方式、请求 ID、系列 ID、单次/整系列范围、原规则日期，以及完整系列和全部例外的前后快照。删除后仍保留记录，无日程外键级联。
 
-新增 MCP 通过同一 REST API 写入。新版 payload.schemaVersion=2，`declaredSource` 保存 X-Schedule-Source 自报标签；Cookie 缺省为 WEB，其他缺省或无效标签为 UNKNOWN。该字段不证明真实客户端身份，不改写旧正文或哈希；当前版本已发布，以查询实际返回为准。
+MCP 通过同一 REST API 写入。payload.schemaVersion=2 中，`declaredSource` 保存 X-Schedule-Source 自报标签；Cookie 缺省为 WEB，其他缺省或无效标签为 UNKNOWN。该字段不证明真实客户端身份，不改写旧正文或哈希。
 
 日程和审计在同一数据库事务中提交；审计写入失败则日程回滚。并发写入先取得专用行锁，保证序号与哈希链连续。409、校验失败、未登录等失败请求不记为成功变更，按请求 ID 查看运行日志。响应头 `X-Request-ID` 用于排错；成功写入另有 `X-Audit-Sequence`。
 
@@ -41,7 +41,7 @@ python scripts/scheduletool.py logs --tail 50
 
 ## 文件与保留
 
-本地原实例运行日志为 `.local/logs/runtime.log`，MCP 独立验收实例为 `.local/mcp/logs/runtime.log`；按日或 10MB 轮转，最多 30 天、合计 300MB。正式服务将 `/app/logs` 挂到专用日志卷，已部署验证；线上日志使用既有管理入口查看。
+本地应用运行日志为 `.local/logs/runtime.log`，MCP 独立验收实例为 `.local/mcp/logs/runtime.log`；按日或 10MB 轮转，最多 30 天、合计 300MB。容器部署将 `/app/logs` 挂到专用日志卷；线上日志使用部署环境的管理工具查看。
 
 请求日志不记录正文、查询参数、密码、Cookie、Bearer 或 CSRF token；仅记录路径、状态、耗时、请求 ID 与审计序号。业务审计快照包含日程内容，按私密数据管理，不提交 Git。审计表无自动删除策略；备份须覆盖 audit_log 与 audit_lock，未来归档需同时设计链与校验点的连续性。
 # V4 兼容扩展

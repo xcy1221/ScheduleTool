@@ -1,6 +1,6 @@
 # MCP 接入
 
-当前 MCP/OAuth 和常驻隧道已上线并完成测试。基础部署见 [部署流程](deployment.md)，容器发布包见 [MCP 部署](../deploy/mcp/README.md)。新环境默认关闭 MCP。
+基础部署见 [部署流程](deployment.md)，容器发布包见 [MCP 部署](../deploy/mcp/README.md)。新环境默认关闭 MCP。
 
 ## 协议与工具
 
@@ -70,4 +70,4 @@ python scripts/mcp-smoke.py after
 
 密钥在终端安全输入，不放聊天或参数；前台运行需保持终端打开。健康页仅监听 `127.0.0.1:18083`，日志在 `.local/mcp/logs/`。本机 loopback HTTP 仅用于隔离测试，生产验证 HTTPS。隧道脚本保留 UTF-8 BOM，兼容 Windows PowerShell 5.1。
 
-验收必须包含真实 OAuth 关联、工具读写和重启后授权／数据保留，单独健康检查不能替代。当前验证范围见 [验证结果](verification.md)。
+验收必须包含真实 OAuth 关联、工具读写和重启后授权／数据保留，单独健康检查不能替代。完整回归项目见 [验收清单](acceptance.md)。

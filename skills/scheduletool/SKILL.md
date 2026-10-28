@@ -43,7 +43,7 @@ python scripts/scheduletool.py --help
 ## ChatGPT 与 MCP
 
 - 具备本机执行环境且已获准使用私密配置的 ChatGPT，可运行同一脚本并填写 `--source CHATGPT`。云端 ChatGPT 不能假定能读取本机文件、已安装的 skill 或访问内网地址。
-- 项目已完成 MCP 和 OAuth 上线，并提供独立本地验收环境；是否可用以当前已连接工具为准。未连接时不能假装能调用，也不能把本机通过测试说成 ChatGPT 已连通。配置与状态见项目 `docs/mcp.md`。
+- MCP 是否可用以当前已连接工具为准。未连接时不能假装能调用，也不能把本机通过测试说成 ChatGPT 已连通。配置与验证方法见项目 `docs/mcp.md`。
 - 日程工具为 `schedule_status/list/get/create/update/delete/history/verify`，另有上述 TODO 与关联工具。写操作的 `source` 由执行 AI 填写；401 走连接授权，403 核对读取/写入范围，409 重新查询。写入成功后调用查询工具回查，报告审计回执。
 - MCP 适配服务从私密文件读取应用凭据并调用 REST API；OAuth 令牌与后端 API 令牌分开，不作为工具参数或返回值。不在日程操作中自动部署、改授权配置或开放网络。
 

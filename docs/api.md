@@ -49,7 +49,7 @@ OpenAPI JSON：`GET /schedule/api/openapi`，Swagger UI：`/schedule/api/docs`�
 
 审计接口 `GET /audit-logs` 与 `GET /audit-logs/verify` 同样需要鉴权。成功日程写入自动保存完整前后快照，响应头含 `X-Audit-Sequence`，所有 API 响应含 `X-Request-ID`。分页、库外校验点及限制见 [日志与回溯](audit.md)。
 
-新版写请求可带 `X-Schedule-Source: CODEX|CHATGPT|WEB|OTHER|UNKNOWN`，保存在审计 `data.declaredSource`，只作调用方自报标签。Cookie 缺省记 WEB，其他缺省或无效值记 UNKNOWN；不改写既有审计。MCP 工具和 OAuth 接入见 [MCP 说明](mcp.md)；当前版本已发布。
+新版写请求可带 `X-Schedule-Source: CODEX|CHATGPT|WEB|OTHER|UNKNOWN`，保存在审计 `data.declaredSource`，只作调用方自报标签。Cookie 缺省记 WEB，其他缺省或无效值记 UNKNOWN；不改写既有审计。MCP 工具和 OAuth 接入见 [MCP 说明](mcp.md)。
 # TODO 与日历联动（V4）
 
 - `GET /api/v1/todos?q=&status=&includeCompleted=false&unscheduled=false`：默认未完成，搜索四个文本字段，置顶优先。状态为 `PENDING/IN_PROGRESS/COMPLETED/SHELVED`；未排期指无后续或进行中的有效安排。

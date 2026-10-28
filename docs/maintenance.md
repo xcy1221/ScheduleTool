@@ -46,8 +46,6 @@ sha256sum scheduletool.sql > scheduletool.sql.sha256
 4. 清理演练库中的旧会话和 OAuth 授权，使用独立配置验证登录和重新授权。
 5. 演练成功且获得正式恢复授权后，切换正式连接或恢复目标库，复核权限及业务行为。
 
-2026-10-20 已完成本项目 SQL 备份的隔离恢复、旧审计校验与 V4 增量迁移演练；整机数据卷恢复尚未演练。
-
 ## 排障
 
 - 本机日志：`.local/logs/runtime.log`、`.local/app.log`、`.local/app-error.log`；服务器用 `docker compose logs --tail 80`。
