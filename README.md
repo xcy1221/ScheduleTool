@@ -12,13 +12,17 @@
 - [维护与备份](docs/maintenance.md)：升级、重启、恢复和排障。
 - [文档索引与目录说明](docs/README.md)：文件用途和项目目录。
 
+## Server Panel 集成
+
+遵循 [Server Panel 规范](https://192.168.1.71/server-readme/README.md)，统一顶部栏为 `HOMESERVER · ScheduleTool　←返回server panel　外观与排版`。布局偏好仅作用于本工具，明暗与色调使用共享设置；详见 [界面规范](docs/server-panel.md)。
+
 ## 使用约定
 
 - 时间点不设置结束时间；时间段结束须晚于开始，最长 366 天。
 - 全天界面填写最后一天，API `end` 为次日零点，采用排他结束。
 - 每周重复取开始日期对应的星期；截止日包含当天，留空持续重复。
 - 单次操作使用原规则日期；整系列修改会清除已有单次修改与取消。
-- “外观”支持明暗和五种色调，浏览器记住选择。
+- “外观与排版”支持明暗、五种色调、内容宽度、密度和周／日时间刻度，浏览器记住选择。
 - 当前为单用户应用，不提供提醒推送和任务复盘。
 
 接口见 [API 文档](docs/api.md)，数据结构见 [数据库设计](docs/database-design.md)，审计能力与边界见 [日志说明](docs/audit.md)。[ScheduleTool skill](skills/scheduletool/SKILL.md) 提供 Python 标准库客户端。
