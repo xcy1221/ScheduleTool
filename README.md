@@ -26,3 +26,8 @@
 - 当前为单用户应用，不提供提醒推送和任务复盘。
 
 接口见 [API 文档](docs/api.md)，数据结构见 [数据库设计](docs/database-design.md)，审计能力与边界见 [日志说明](docs/audit.md)。[ScheduleTool skill](skills/scheduletool/SKILL.md) 提供 Python 标准库客户端。
+
+## 版本与维护状态
+
+- 当前项目版本统一索引见 [VERSION](VERSION)，与 `backend/pom.xml`、`frontend/package.json` 保持一致；沿用现有构建和发布流程。
+- 是否仍在维护以 [STATUS.md](STATUS.md) 的 `maintenance_status` 为准；维护结论变化时同步该文件及本节。
