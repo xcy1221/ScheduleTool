@@ -10,7 +10,8 @@ import type { CalendarOptions, DatesSetArg, EventClickArg, DateSelectArg } from 
 import { DateTime } from 'luxon'
 import { api, ApiFailure, setCsrf, todoStatusText, type Todo, type TodoDetail, type TodoFilter, type ScheduleEvent, type Session, type Repeat } from './api'
 import TodoPanel from './TodoPanel.vue'
-import ThemeToggle from './ThemeToggle.vue'
+import ServerPanelHeader from './ServerPanelHeader.vue'
+import { layout, slotDuration } from './theme'
 
 const zone = 'Asia/Shanghai'
 const now = () => DateTime.now().setZone(zone)
@@ -52,6 +53,8 @@ const agenda = computed(() => events.value.filter(e => {
 function notice(text: string) { toast.value = text; window.setTimeout(() => { toast.value = '' }, 3000) }
 function expired() { user.value = null; editor.value = false; events.value = []; todos.value = []; setCsrf('') }
 watch(user, u => { if (u) loadTodos() })
+watch(() => layout.slotMinutes, () => calendar.value?.getApi().setOption('slotDuration', slotDuration()))
+watch(() => [layout.width, layout.density], async () => { await nextTick(); calendar.value?.getApi().updateSize() })
 watch(page, async p => { if (p === 'calendar') { await nextTick(); calendar.value?.getApi().updateSize() } })
 async function signIn() {
   busy.value = true; loginError.value = ''
@@ -66,7 +69,7 @@ const options: CalendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin], locale: zhCn, timeZone: zone,
   initialView: 'dayGridMonth', initialDate: today, headerToolbar: false, firstDay: 1, height: '100%',
   nowIndicator: true, selectable: true, dayMaxEvents: 3, weekends: true, allDayText: '全天',
-  slotMinTime: '00:00:00', scrollTime: '08:00:00', slotDuration: '00:30:00',
+  slotMinTime: '00:00:00', scrollTime: '08:00:00', slotDuration: slotDuration(),
   eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
   slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
   datesSet(info: DatesSetArg) {
@@ -171,7 +174,7 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
 </script>
 
 <template>
-  <ThemeToggle v-if="!user" class="login-theme" />
+  <ServerPanelHeader />
   <div v-if="checking" class="boot">正在打开日程…</div>
   <main v-else-if="!user" class="login-page">
     <div class="login-intro"><div class="brand-mark">日</div><span class="eyebrow">SCHEDULETOOL</span><h1>把时间，<br>留给要做的事。</h1><p>一个清楚、安静的地方，<br>安排每一天。</p><div class="intro-bottom">日程 · 你的个人日历</div></div>
@@ -203,7 +206,7 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
       </div>
       <footer><span class="zone-dot"></span> 上海时间 · UTC+8<div><a href="/schedule/api/docs" target="_blank" rel="noopener">API 文档 ↗</a><button @click="signOut">退出登录</button></div></footer>
     </aside>
-    <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>{{ page === 'calendar' ? '我的日历' : 'TODO · 待办与想法' }}</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div><ThemeToggle /></div></header>
+    <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>{{ page === 'calendar' ? '我的日历' : 'TODO · 待办与想法' }}</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div></div></header>
       <nav class="mobile-page-switch" aria-label="主视图"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></nav>
       <div v-if="error" class="banner" role="alert">{{ error }} <button @click="refresh">重试</button></div>
       <TodoPanel v-if="page === 'todo'" ref="todoPanel" v-model:filter="todoFilter" :items="todos" :selected="selectedTodo" :loading="todoLoading" @select="selectedTodo = $event" @changed="refresh" @schedule="scheduleTodo" @calendar="showCalendar" />
