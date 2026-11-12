@@ -43,7 +43,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside))
         </label>
       </div></fieldset>
 
-      <div class="schedule-layout-options"><label>内容宽度<select v-model="layout.width" aria-label="内容宽度"><option value="standard">标准</option><option value="wide">宽屏</option><option value="full">铺满</option></select></label><label>内容密度<select v-model="layout.density" aria-label="内容密度"><option value="comfortable">舒适</option><option value="compact">紧凑</option></select></label><label>周／日时间刻度<select v-model="layout.slotMinutes" aria-label="周／日时间刻度"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></label></div>
+      <div class="schedule-layout-options"><label>内容密度<select v-model="layout.density" aria-label="内容密度"><option value="comfortable">舒适</option><option value="compact">紧凑</option></select></label><label>周／日时间刻度<select v-model="layout.slotMinutes" aria-label="周／日时间刻度"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></label></div>
       <p class="schedule-layout-hint">仅调整日程工具布局和显示刻度，不改变日程时间。明暗与色调可在同源页面同步。</p>
       <button type="button" class="reset-schedule-layout" @click="resetLayout">恢复默认排版</button>
     </section>
