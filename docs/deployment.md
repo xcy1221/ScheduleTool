@@ -84,4 +84,6 @@ docker compose logs --tail 80 scheduletool
 
 切换前 `serverctl plan` 无漂移；配置变更后 `pull schedule --replace` 刷新基线，仅两个配置文件变化。容器官方健康检查要求的控制平面轮询已通过；应用 JAR、MySQL 和 OAuth 配置未改动，ScheduleTool 后端及既有 OpenClaw 容器的 ID、启动时间均保持。模板基线为 `7decf757`。
 
+当日 23:15:43（Asia/Shanghai），通过现有 ChatGPT ScheduleTool 插件的真实 OAuth 通路只读调用 `schedule_status` 成功，返回 `Asia/Shanghai` 且服务器时间正常。
+
 回退时恢复原 Tunnel 代理地址和出站网络，再单独重建 Tunnel worker；运行配置及备份保存在私有目录，不写入本文。模板和说明通过独立 PR 交用户手动合并，本次运行配置切换不部署 PR 中的应用代码。
