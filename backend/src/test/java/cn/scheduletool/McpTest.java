@@ -40,6 +40,7 @@ class McpTest {
         p.add("server.port",()->PORT); p.add("app.password-hash",()->new BCryptPasswordEncoder(4).encode(PASSWORD));
         p.add("spring.datasource.url",()->"jdbc:h2:mem:mcp;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE");
         p.add("app.mcp.enabled",()->true); p.add("app.mcp.issuer",()->BASE); p.add("app.mcp.resource",()->RESOURCE);
+        p.add("app.web-auto-login",()->true);
         p.add("app.mcp.client-secret-hash",()->new BCryptPasswordEncoder(4).encode(SECRET));
         p.add("app.mcp.redirect-uris",()->CALLBACK); p.add("app.mcp.signing-key-file",()->PRIVATE.resolve("key.jwk").toString());
         p.add("app.mcp.api-base",()->BASE); p.add("app.mcp.api-password-file",()->PRIVATE.resolve("password.txt").toString());
@@ -128,6 +129,9 @@ class McpTest {
         assertEquals(200,response.statusCode()); assertTrue(json.readTree(response.body()).path("code_challenge_methods_supported").toString().contains("S256"));
         response=send("POST","/mcp","{}",null); assertEquals(401,response.statusCode());
         assertTrue(response.headers().firstValue("WWW-Authenticate").orElseThrow().contains("oauth-protected-resource/mcp"));
+        var session=send("GET","/api/v1/auth/me",null,null);
+        assertEquals(200,session.statusCode()); assertTrue(json.readTree(session.body()).path("autoLogin").asBoolean());
+        assertEquals(401,send("POST","/mcp","{}",null).statusCode());
         assertEquals(403,form("/mcp-login",Map.of("username","admin","password",PASSWORD),false).statusCode());
         assertEquals(401,send("POST","/mcp","{}","not-a-token").statusCode());
     }

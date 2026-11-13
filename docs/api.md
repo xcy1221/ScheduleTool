@@ -10,6 +10,8 @@
 
 浏览器使用同源 HttpOnly、SameSite=Strict Cookie；写请求需带 `X-CSRF-TOKEN`。`GET /auth/me` 获取身份和 CSRF；`POST /auth/logout` 撤销当前会话。API/OpenAPI 文档均需鉴权。登录端点本身不需要既有 token。
 
+内网免登录模式（`APP_WEB_AUTO_LOGIN=true`）允许无 `Authorization` 的 `GET /auth/me` 自动创建 Cookie 会话，返回 `autoLogin=true`，不返回 `accessToken`。其他接口仍校验会话及 CSRF，无效 Bearer 不会降级为免登录。开启前须限制页面与 REST API 的内网入口；MCP/OAuth 不受此开关影响。
+
 ## 日程
 
 | 方法 | 路径 | 说明 |
