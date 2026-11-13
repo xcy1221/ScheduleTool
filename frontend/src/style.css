@@ -76,7 +76,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}
 .appearance-panel legend{padding:0;margin-bottom:10px;font-size:12px;color:var(--secondary)}
 .appearance-modes{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;background:var(--soft);border-radius:8px}
 .appearance-panel label{position:relative;cursor:pointer;border-radius:6px;text-align:center;color:var(--text)}
-.appearance-panel input{position:absolute;opacity:0;inset:0;margin:0;width:100%;height:100%;cursor:pointer}
+.appearance-panel input[type="radio"]{position:absolute;opacity:0;inset:0;margin:0;width:100%;height:100%;cursor:pointer}
 .appearance-modes label{padding:9px 12px;font-size:12px;border:1px solid transparent}
 .appearance-modes label.selected{background:var(--surface);border-color:var(--line);font-weight:600;color:var(--green)}
 .appearance-panel label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
@@ -126,3 +126,10 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}
 :root[data-schedule-density="compact"] .workspace{padding-top:22px}:root[data-schedule-density="compact"] .page-header{margin-bottom:18px}:root[data-schedule-density="compact"] .toolbar{padding:16px;min-height:64px}:root[data-schedule-density="compact"] .fc .fc-timegrid-slot{height:23px}:root[data-schedule-density="compact"] .todo-row{padding-top:10px;padding-bottom:10px}
 
 /* 工作区使用原有流式宽度，不设置页面限宽。 */
+
+:root[data-layout-page="schedule"] .toolbar{padding:calc(23px * var(--page-density)) calc(26px * var(--page-density));min-height:calc(82px * var(--page-density))}
+:root[data-layout-page="schedule"] .page-header{margin-bottom:calc(27px * var(--page-density))}
+:root[data-layout-page="schedule"] .todo-row{padding:calc(14px * var(--page-density));gap:calc(6px * var(--page-density))}
+:root[data-layout-page="schedule"] .fc .fc-timegrid-slot{height:calc(30px * var(--page-density))}
+:root[data-layout-page="schedule"][data-layout-inset-x] .workspace{padding-inline:var(--page-inset-x)}
+:root[data-layout-page="schedule"][data-layout-inset-y] .workspace{padding-block:var(--page-inset-y)}

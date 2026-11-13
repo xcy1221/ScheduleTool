@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import './page-layout.js'
 import { theme, tone, tones, setTheme, setTone, layout, resetLayout } from './theme'
 
+const layoutHost = ref<HTMLElement>()
+const pageLayout = window.ServerPanelLayout.create({ id: 'schedule', legacyKey: 'scheduletool-layout-v1', cardGap: false })
+watch(layoutHost, host => { if (host) pageLayout.mount(host) })
+onUnmounted(() => pageLayout.destroy())
+function resetPageLayout() { resetLayout(); pageLayout.reset() }
 const id = useId(), open = ref(false)
 const control = ref<HTMLElement>(), trigger = ref<HTMLButtonElement>()
 function close(restoreFocus = false) {
@@ -43,9 +49,10 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside))
         </label>
       </div></fieldset>
 
-      <div class="schedule-layout-options"><label>内容密度<select v-model="layout.density" aria-label="内容密度"><option value="comfortable">舒适</option><option value="compact">紧凑</option></select></label><label>周／日时间刻度<select v-model="layout.slotMinutes" aria-label="周／日时间刻度"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></label></div>
+      <div ref="layoutHost"></div>
+      <div class="schedule-layout-options"><label>周／日时间刻度<select v-model="layout.slotMinutes" aria-label="周／日时间刻度"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></label></div>
       <p class="schedule-layout-hint">仅调整日程工具布局和显示刻度，不改变日程时间。明暗与色调可在同源页面同步。</p>
-      <button type="button" class="reset-schedule-layout" @click="resetLayout">恢复默认排版</button>
+      <button type="button" class="reset-schedule-layout" @click="resetPageLayout">恢复默认排版</button>
     </section>
   </div>
 </template>
