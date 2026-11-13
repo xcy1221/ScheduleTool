@@ -9,6 +9,7 @@
 - [部署流程](docs/deployment.md)：数据库初始化、构建、HTTPS 反代、启动与验证。
 - [本地开发](docs/development.md)：环境配置、构建、运行和测试。
 - [MCP 接入](docs/mcp.md)：OAuth 配置、14 个工具与本地验收。
+- MCP Tunnel 模板使用独立 ISP 出站代理；配置与运行变更见 [MCP 部署](deploy/mcp/README.md) 和 [部署记录](docs/deployment.md#7-部署记录)。
 - [维护与备份](docs/maintenance.md)：升级、重启、恢复和排障。
 - [文档索引与目录说明](docs/README.md)：文件用途和项目目录。
 

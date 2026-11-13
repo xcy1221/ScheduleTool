@@ -1,6 +1,6 @@
 # MCP/OAuth 与隧道部署
 
-这是独立发布包模板，适用于已有 MySQL、Caddy 和出站代理网络的 Linux x86_64 环境；基础建库和 HTTPS 见 [部署流程](../../docs/deployment.md)。不会自动创建外部网络或下载私有客户端包。
+这是独立发布包模板，适用于已有 MySQL、Caddy 和 ISP 出站代理网络的 Linux x86_64 环境；基础建库和 HTTPS 见 [部署流程](../../docs/deployment.md)。不会自动创建外部网络或下载私有客户端包。
 
 ## 1. 准备发布包
 
@@ -55,8 +55,8 @@ app.mcp.api-password-file=/run/secrets/api-password.txt
 
 ## 3. 网络与配置
 
-- `.env` 填写镜像版本、`JAVA_IMAGE`、三个外部网络及空闲固定 IP；SQL host 对应应用在 MySQL 网络的来源。
-- `tunnel.yaml` 替换 tunnel ID、MCP HTTPS 地址及 Harpoon 精确 host 正则。出站代理示例为 `mihomo:7890`，按实际环境修改；直连时去掉 `http_proxy` 并移除不需要的出站网络。
+- `.env` 填写镜像版本、`JAVA_IMAGE` 和三个外部网络；应用 MySQL 地址与 Tunnel 的 Caddy 地址使用空闲固定 IP，ISP 出站网络动态分配地址。SQL host 对应应用在 MySQL 网络的来源。
+- `tunnel.yaml` 替换 tunnel ID、MCP HTTPS 地址及 Harpoon 精确 host 正则。控制平面经 `http://isp-gateway:17890` 代理，Tunnel worker 连接既有 `isp-gateway_default` 网络；该监听仅在代理容器内开放，强制使用 `ISPProxyGroup`，不发布宿主端口。其他环境按实际代理地址和网络调整。
 - `caddy-root.crt` 为内部公开 CA；如果使用公共 CA，移除 Compose 的 `--ca-bundle` 参数与对应证书挂载，使用镜像的系统 CA。
 - 只有确实需要 Docker 回流访问时，才在现有内网拒绝规则前加入 `caddy-route.caddy`，替换网关占位值。它按来源 IP、路径和方法放行 MCP POST、元数据 GET、token/revoke POST；同网关其他容器也能访问这些端点，身份由 OAuth 校验。
 - 反代配置由生成器维护时修改生成源，验证后 reload。浏览器仍须能访问授权页；登录、REST、Swagger 不通过此白名单向隧道放行。
@@ -74,3 +74,5 @@ docker compose ps
 隧道按应用健康依赖启动，入口另等应用返回 200；原生健康检查要求成功控制平面轮询。保持运行后，按 [MCP 接入](../../docs/mcp.md) 完成 OAuth 关联并测试 8 个工具、重复例外、审计、重启持久化和令牌刷新。
 
 已有服务器管理工具时，通过其预置挂载、登记文件来源、检查差异并发布；不要把整个私密目录登记成公开配置源。回退恢复旧配置及镜像，保留 V3 新表，数据库恢复先在隔离库演练。
+
+仅切换出站时，先检查计划与漂移，保留 Caddy 固定地址、tunnel ID、运行密钥及 Tunnel 镜像，只重建 `scheduletool-tunnel`。回查健康检查、控制平面轮询和实际 MCP 调用；无需重建应用镜像或发布 JAR。运行变更见 [部署记录](../../docs/deployment.md#7-部署记录)。

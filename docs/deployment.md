@@ -77,3 +77,11 @@ docker compose logs --tail 80 scheduletool
 ## 6. 可选 MCP/OAuth
 
 基础部署完成后，按 [MCP 接入](mcp.md) 和 [MCP 容器部署](../deploy/mcp/README.md) 准备 OAuth 密钥与隧道发布包。无需 AI 接入时保持默认关闭。
+
+## 7. 部署记录
+
+2026-11-13 23:09:49（Asia/Shanghai）：按用户授权将 ScheduleTool Tunnel 控制平面切换至 `http://isp-gateway:17890`。仅重建 `scheduletool-tunnel`，出站移入既有 `isp-gateway_default` 网络；Caddy 固定地址、tunnel ID、运行密钥及 `0.0.16-startup1` 镜像不变，镜像 ID 为 `sha256:d97a1dce7177e246877d908511c424dc6376eaa91d1ff3ac4ba6c830302ad3fc`。
+
+切换前 `serverctl plan` 无漂移；配置变更后 `pull schedule --replace` 刷新基线，仅两个配置文件变化。容器官方健康检查要求的控制平面轮询已通过；应用 JAR、MySQL 和 OAuth 配置未改动，ScheduleTool 后端及既有 OpenClaw 容器的 ID、启动时间均保持。模板基线为 `7decf757`。
+
+回退时恢复原 Tunnel 代理地址和出站网络，再单独重建 Tunnel worker；运行配置及备份保存在私有目录，不写入本文。模板和说明通过独立 PR 交用户手动合并，本次运行配置切换不部署 PR 中的应用代码。

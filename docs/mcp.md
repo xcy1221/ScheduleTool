@@ -30,6 +30,8 @@ OAuth 使用授权码 + PKCE S256、精确回调地址、预注册客户端和 `
 
 Secure MCP Tunnel 由客户端出站轮询 OpenAI。运行需 Tunnels Read + Use，创建／管理需 Read + Manage，并关联目标工作区；授权服务器的可达性须单独验证。以 [OpenAI 官方隧道指南](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels) 的当前流程为准。
 
+容器模板的控制平面代理为 `http://isp-gateway:17890`，通过既有 `isp-gateway_default` 网络出站；代理监听强制使用 `ISPProxyGroup`，不发布宿主端口。隧道仍通过 `caddy-proxy` 访问 MCP。切换出站只调整 Tunnel worker，不更换 tunnel ID、运行密钥或应用 JAR；回查控制平面轮询及实际工具调用，见 [部署记录](deployment.md#7-部署记录)。
+
 ## 本机隔离验收
 
 先按 [本地开发](development.md) 准备 `.local/login.txt`，构建前端，再从仓库根目录执行：
