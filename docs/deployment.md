@@ -18,6 +18,8 @@ docker network inspect mysql_default caddy-proxy
 
 填写 `.env` 的数据库连接、密码、登录哈希、网络名和固定 IP。`DB_URL` 使用可解析的 MySQL 服务名，要求 TLS；需要校验证书身份时另配 JVM 信任库并使用 `VERIFY_IDENTITY`。业务时区为 `Asia/Shanghai`。
 
+若页面与 `/schedule/api/*` 均仅允许内网访问，可设置 `APP_WEB_AUTO_LOGIN=true`，访问页面自动进入日历，无需输入密码；会话过期后自动恢复。默认 `false`。此开关不检查来源 IP，内网限制由反代/防火墙保证；不要向公网开放 REST API 或 `/auth/me`。Cookie、CSRF 和审计保留，MCP/OAuth 仍需原有认证，`APP_PASSWORD_HASH` 继续配置。改回 `false` 后清理 `auth_tokens` 可立即撤销已有免登录会话。
+
 ## 2. 首次初始化数据库
 
 把 `deploy/database-init.sql` 复制到受保护位置，替换 `REPLACE_WITH_APP_HOST` 和 `REPLACE_WITH_RANDOM_PASSWORD`；host 使用应用实际来源，密码与 `.env` 的 `DB_PASSWORD` 一致。修改库名和账号时同步替换所有引用。

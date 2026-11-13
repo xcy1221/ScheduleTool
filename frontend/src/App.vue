@@ -60,7 +60,7 @@ onUnmounted(() => window.removeEventListener('serverpanel-layout-change', update
 watch(page, async p => { if (p === 'calendar') { await nextTick(); calendar.value?.getApi().updateSize() } })
 async function signIn() {
   busy.value = true; loginError.value = ''
-  try { const s = await api<Session>('/api/v1/auth/login', 'POST', login); setCsrf(s.csrfToken); user.value = s; login.password = '' }
+  try { const s = await api<Session>('/api/v1/auth/login', 'POST', login); setCsrf(s.csrfToken, s.autoLogin); user.value = s; login.password = '' }
   catch (e) { loginError.value = (e as Error).message }
   finally { busy.value = false }
 }
@@ -169,7 +169,7 @@ async function linkTodo() {
 function escape(event: KeyboardEvent) { if (event.key === 'Escape' && !busy.value) editor.value = false }
 onMounted(async () => {
   window.addEventListener('session-expired', expired); window.addEventListener('keydown', escape)
-  try { const s = await api<Session>('/api/v1/auth/me'); user.value = s; setCsrf(s.csrfToken) } catch { /* login is shown for an unauthenticated session */ }
+  try { const s = await api<Session>('/api/v1/auth/me'); user.value = s; setCsrf(s.csrfToken, s.autoLogin) } catch { /* login is shown for an unauthenticated session */ }
   finally { checking.value = false }
 })
 onUnmounted(() => { window.removeEventListener('session-expired', expired); window.removeEventListener('keydown', escape) })
@@ -206,7 +206,7 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
         </template>
         <section v-else class="sidebar-section"><h2 class="sidebar-heading">待办筛选</h2><nav class="todo-nav" aria-label="待办筛选"><button v-for="(f, index) in todoFilters" :key="f.id" :class="{ active: todoFilter === f.id, 'status-start': index === 3 }" :aria-pressed="todoFilter === f.id" @click="showTodoList(f.id)"><span>{{ f.label }}</span><span v-if="todoCount(f.id)" class="count">{{ todoCount(f.id) }}</span></button></nav></section>
       </div>
-      <footer><span class="zone-dot"></span> 上海时间 · UTC+8<div><a href="/schedule/api/docs" target="_blank" rel="noopener">API 文档 ↗</a><button @click="signOut">退出登录</button></div></footer>
+      <footer><span class="zone-dot"></span> 上海时间 · UTC+8<div><a href="/schedule/api/docs" target="_blank" rel="noopener">API 文档 ↗</a><button v-if="!user.autoLogin" @click="signOut">退出登录</button></div></footer>
     </aside>
     <main class="workspace"><header class="page-header"><div><span class="eyebrow">给每件事，留好时间</span><h1>{{ page === 'calendar' ? '我的日历' : 'TODO · 待办与想法' }}</h1></div><div class="header-actions"><div class="header-date">{{ now().setLocale('zh-CN').toFormat('yyyy年M月d日 cccc') }}</div></div></header>
       <nav class="mobile-page-switch" aria-label="主视图"><button :class="{ selected: page === 'calendar' }" @click="page = 'calendar'">日历</button><button :class="{ selected: page === 'todo' }" @click="page = 'todo'">TODO · 待办与想法</button></nav>

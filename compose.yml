@@ -10,6 +10,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?required}
       APP_USERNAME: ${APP_USERNAME:-admin}
       APP_PASSWORD_HASH: ${APP_PASSWORD_HASH:?required}
+      APP_WEB_AUTO_LOGIN: ${APP_WEB_AUTO_LOGIN:-false}
       COOKIE_SECURE: "true"
       SPRING_FLYWAY_ENABLED: "false"
       SERVER_FORWARD_HEADERS_STRATEGY: framework

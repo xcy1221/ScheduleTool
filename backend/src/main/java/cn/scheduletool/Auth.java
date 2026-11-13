@@ -31,6 +31,7 @@ public class Auth implements HandlerInterceptor {
     @Value("${app.password-hash}") private String passwordHash;
     @Value("${app.cookie-secure}") private boolean secure;
     @Value("${app.session-hours}") private int hours;
+    @Value("${app.web-auto-login:false}") private boolean webAutoLogin;
     private record Attempt(int count, Instant since) {}
     private final Map<String,Attempt> attempts=new ConcurrentHashMap<>();
     private final SecureRandom random=new SecureRandom();
@@ -48,14 +49,17 @@ public class Auth implements HandlerInterceptor {
             .path(req.getContextPath().isEmpty()?"/":req.getContextPath()+"/").maxAge(age).build().toString());
     }
     record Login(@NotBlank @Size(max=100) String username,@NotBlank @Size(max=200) String password) {}
-    record Session(String username,String accessToken,String csrfToken,Instant expiresAt) {}
+    record Session(String username,String accessToken,String csrfToken,Instant expiresAt,boolean autoLogin) {}
     public synchronized Session login(Login in,HttpServletRequest req,HttpServletResponse res) {
         checkCredentials(in.username(),in.password(),req.getRemoteAddr());
+        return createSession(req,res);
+    }
+    private Session createSession(HttpServletRequest req,HttpServletResponse res) {
         Instant now=Instant.now(); String access=token(),csrf=token(); Instant expiry=now.plusSeconds(hours*3600L);
         db.update("DELETE FROM auth_tokens WHERE expires_at<?",LocalDateTime.ofInstant(now,ZoneOffset.UTC));
         db.update("INSERT INTO auth_tokens(token_hash,csrf_token,expires_at) VALUES(?,?,?)",hash(access),csrf,LocalDateTime.ofInstant(expiry,ZoneOffset.UTC));
         cookie(req,res,access,Duration.ofHours(hours));
-        return new Session(username,access,csrf,expiry);
+        return new Session(username,access,csrf,expiry,webAutoLogin);
     }
     synchronized void checkCredentials(String name,String password,String ip) {
         if(name==null || password==null || name.length()>100 || password.length()>200) throw new ApiError.Failure(401,"用户名或密码不正确");
@@ -82,7 +86,12 @@ public class Auth implements HandlerInterceptor {
         String access=bearer?authorization.substring(7):null;
         if(!bearer && req.getCookies()!=null) for(var c:req.getCookies()) if(c.getName().equals(COOKIE)) access=c.getValue();
         List<Session> sessions=access==null || access.length()>256 ? List.of() : db.query("SELECT csrf_token,expires_at FROM auth_tokens WHERE token_hash=? AND expires_at>?",
-            (rs,n)->new Session(username,null,rs.getString("csrf_token"),rs.getObject("expires_at",LocalDateTime.class).toInstant(ZoneOffset.UTC)),hash(access),LocalDateTime.now(ZoneOffset.UTC));
+            (rs,n)->new Session(username,null,rs.getString("csrf_token"),rs.getObject("expires_at",LocalDateTime.class).toInstant(ZoneOffset.UTC),webAutoLogin),hash(access),LocalDateTime.now(ZoneOffset.UTC));
+        // Only the browser bootstrap may create a session without credentials; API writes still require CSRF.
+        if(sessions.isEmpty() && webAutoLogin && authorization==null && path.equals("/api/v1/auth/me") && req.getMethod().equals("GET")) {
+            var created=createSession(req,res); access=created.accessToken();
+            sessions=List.of(new Session(username,null,created.csrfToken(),created.expiresAt(),true));
+        }
         if(sessions.isEmpty()) return reject(res,401,"请先登录");
         Session session=sessions.getFirst();
         if(!bearer && !Set.of("GET","HEAD","OPTIONS").contains(req.getMethod())) {
