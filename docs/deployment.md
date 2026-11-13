@@ -82,10 +82,19 @@ docker compose logs --tail 80 scheduletool
 
 ## 7. 部署记录
 
+### 2026-11-14 内网页面免登录
+
+- 已部署 [PR #8](https://github.com/xcy1221/ScheduleTool/pull/8)，前后端均构建自 `43921791d3eda7188452712731940fa479f1a933`；镜像 `scheduletool:lan-auto-60f8f65df23d`，JAR SHA-256 为 `60f8f65df23dce56ff7627c2a8683673f7d37b3acc6cc760bcb258850358905b`。
+- 生产开启 `APP_WEB_AUTO_LOGIN=true`，页面与 REST API 仍限制为内网访问。两个全新客户端免登录、Cookie/CSRF、审计链和实际 MCP 调用验证通过；应用与隧道 healthy，发布计划无差异或漂移，原有业务与审计数据指纹不变。
+- 前端构建、6 项前端测试和 46 项后端测试通过。已备份数据库和配置并校验备份；未创建业务测试数据，验证会话已撤销。详细证据保留在私有维护目录。
+- [PR #7](https://github.com/xcy1221/ScheduleTool/pull/7) 随后合并为 `81e277e`，仅同步下述 ISP 出站模板与说明，未替换线上 JAR。
+
+### 2026-11-13 Tunnel ISP 出站
+
 2026-11-13 23:09:49（Asia/Shanghai）：按用户授权将 ScheduleTool Tunnel 控制平面切换至 `http://isp-gateway:17890`。仅重建 `scheduletool-tunnel`，出站移入既有 `isp-gateway_default` 网络；Caddy 固定地址、tunnel ID、运行密钥及 `0.0.16-startup1` 镜像不变，镜像 ID 为 `sha256:d97a1dce7177e246877d908511c424dc6376eaa91d1ff3ac4ba6c830302ad3fc`。
 
 切换前 `serverctl plan` 无漂移；配置变更后 `pull schedule --replace` 刷新基线，仅两个配置文件变化。容器官方健康检查要求的控制平面轮询已通过；应用 JAR、MySQL 和 OAuth 配置未改动，ScheduleTool 后端及既有 OpenClaw 容器的 ID、启动时间均保持。模板基线为 `7decf757`。
 
 当日 23:15:43（Asia/Shanghai），通过现有 ChatGPT ScheduleTool 插件的真实 OAuth 通路只读调用 `schedule_status` 成功，返回 `Asia/Shanghai` 且服务器时间正常。
 
-回退时恢复原 Tunnel 代理地址和出站网络，再单独重建 Tunnel worker；运行配置及备份保存在私有目录，不写入本文。模板和说明通过独立 PR 交用户手动合并，本次运行配置切换不部署 PR 中的应用代码。
+回退时恢复原 Tunnel 代理地址和出站网络，再单独重建 Tunnel worker；运行配置及备份保存在私有目录，不写入本文。模板和说明已通过 PR #7 合并；上述运行切换当时未部署应用代码。

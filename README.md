@@ -19,6 +19,7 @@
 
 ## 使用约定
 
+- 页面与 REST API 均限制为内网访问时，可用 `APP_WEB_AUTO_LOGIN=true` 开启免登录；Cookie/CSRF 和 MCP/OAuth 认证保留。
 - 时间点不设置结束时间；时间段结束须晚于开始，最长 366 天。
 - 全天界面填写最后一天，API `end` 为次日零点，采用排他结束。
 - 每周重复取开始日期对应的星期；截止日包含当天，留空持续重复。
@@ -32,3 +33,4 @@
 
 - 当前项目版本统一索引见 [VERSION](VERSION)，与 `backend/pom.xml`、`frontend/package.json` 保持一致；沿用现有构建和发布流程。
 - 是否仍在维护以 [STATUS.md](STATUS.md) 的 `maintenance_status` 为准；维护结论变化时同步该文件及本节。
+- 已上线内网免登录；线上构建提交与验证结果见 [部署记录](docs/deployment.md#7-部署记录)，文档合并不自动更新运行版本。
