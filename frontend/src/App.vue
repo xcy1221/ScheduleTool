@@ -54,7 +54,9 @@ function notice(text: string) { toast.value = text; window.setTimeout(() => { to
 function expired() { user.value = null; editor.value = false; events.value = []; todos.value = []; setCsrf('') }
 watch(user, u => { if (u) loadTodos() })
 watch(() => layout.slotMinutes, () => calendar.value?.getApi().setOption('slotDuration', slotDuration()))
-watch(() => layout.density, async () => { await nextTick(); calendar.value?.getApi().updateSize() })
+async function updateLayoutSize() { await nextTick(); calendar.value?.getApi().updateSize() }
+onMounted(() => window.addEventListener('serverpanel-layout-change', updateLayoutSize))
+onUnmounted(() => window.removeEventListener('serverpanel-layout-change', updateLayoutSize))
 watch(page, async p => { if (p === 'calendar') { await nextTick(); calendar.value?.getApi().updateSize() } })
 async function signIn() {
   busy.value = true; loginError.value = ''
