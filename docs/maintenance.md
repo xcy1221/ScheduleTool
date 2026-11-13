@@ -23,6 +23,12 @@ docker compose ps
 
 更换登录密码后清理 `auth_tokens`，并撤销需失效的 OAuth 授权。更换签名密钥会影响现有令牌，应安排重新授权。
 
+## 网页免登录
+
+`APP_WEB_AUTO_LOGIN=true` 适用于页面和 REST API 均受内网入口限制的环境，默认关闭；开启条件见 [部署流程](deployment.md#1-准备环境)。免登录仍保留 Cookie、CSRF 和审计，`APP_PASSWORD_HASH` 继续用于密码登录和 MCP/OAuth。
+
+关闭免登录时改回 `false` 并重新发布容器配置；仅改开关不会撤销已有会话。需要立即恢复强制登录时，由维护身份清理 `auth_tokens`，现有网页和 REST Bearer 会话会失效，OAuth 授权记录保留。应用回退不恢复 SQL 覆盖新业务。
+
 ## 备份与恢复
 
 覆盖项目全部表，含日程、例外、审计、Flyway 历史、会话和 OAuth 授权。OAuth 表含令牌，备份按凭据保护，不放 Git 或公开目录。导出时避免并发 DDL。

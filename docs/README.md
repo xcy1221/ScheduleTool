@@ -2,9 +2,9 @@
 
 | 文档 | 用途 |
 | --- | --- |
-| [部署流程](deployment.md) | 新环境从空库部署当前版本 |
+| [部署流程](deployment.md) | 新环境部署、免登录设置与线上版本记录 |
 | [本地开发](development.md) | 本机配置、构建和测试 |
-| [维护与备份](maintenance.md) | 升级、重启、备份恢复与排障 |
+| [维护与备份](maintenance.md) | 升级、重启、免登录会话、备份恢复与排障 |
 | [MCP 接入](mcp.md) | OAuth、工具和本地验收 |
 | [API](api.md) | REST 请求、重复规则与错误码 |
 | [数据库设计](database-design.md) | 表结构、迁移与凭据边界 |
