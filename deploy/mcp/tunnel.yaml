@@ -3,7 +3,7 @@ control_plane:
   base_url: https://api.openai.com
   tunnel_id: REPLACE_WITH_EXISTING_TUNNEL_ID
   api_key: file:/run/secrets/tunnel-runtime-key
-  http_proxy: http://mihomo:7890
+  http_proxy: http://isp-gateway:17890
 health:
   listen_addr: 127.0.0.1:18083
 admin_ui:

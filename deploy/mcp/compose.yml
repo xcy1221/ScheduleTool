@@ -57,8 +57,7 @@ services:
     networks:
       caddy-proxy:
         ipv4_address: ${TUNNEL_PROXY_IPV4:?required}
-      mihomo-proxy:
-        ipv4_address: ${TUNNEL_EGRESS_IPV4:?required}
+      isp-egress: {}
     read_only: true
     tmpfs: [/tmp]
     security_opt: [no-new-privileges:true]
@@ -80,8 +79,8 @@ networks:
   mysql_default:
     external: true
     name: ${MYSQL_NETWORK:-mysql_default}
-  mihomo-proxy:
+  isp-egress:
     external: true
-    name: ${EGRESS_NETWORK:-mihomo-proxy}
+    name: ${EGRESS_NETWORK:-isp-gateway_default}
 volumes:
   scheduletool-logs:
