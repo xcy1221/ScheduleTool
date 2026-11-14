@@ -32,6 +32,15 @@ class WebAutoLoginTest {
             db.update("DELETE FROM "+table);
     }
     int tokenCount() { return db.queryForObject("SELECT COUNT(*) FROM auth_tokens",Integer.class); }
+    @Test void backendHealthNeedsNoSessionOrStaticPage() throws Exception {
+        mvc.perform(get("/health")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"))
+            .andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie().doesNotExist(Auth.COOKIE));
+        mvc.perform(head("/health")).andExpect(status().isOk());
+        assertEquals(0,tokenCount());
+        mvc.perform(get("/api/v1/events")).andExpect(status().isUnauthorized());
+    }
     MvcResult bootstrap() throws Exception {
         return mvc.perform(get("/api/v1/auth/me")).andExpect(status().isOk())
             .andExpect(jsonPath("$.username").value("admin"))

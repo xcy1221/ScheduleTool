@@ -4,6 +4,8 @@
 
 ## 鉴权
 
+部署探针单独使用 `GET /schedule/health`（不在 API v1 前缀下）：无需会话，只检查数据库连接，返回 200/`{"status":"UP"}` 或 503/`{"status":"DOWN"}`，不创建免登录会话。它不替代下述业务接口认证。
+
 `POST /auth/login`，JSON：`{"username":"admin","password":"你的密码"}`。
 
 返回 `accessToken`、`csrfToken`、`expiresAt`。Token 默认有效 24 小时；后续 API 使用 `Authorization: Bearer <accessToken>`。数据库只保存 token 的 SHA-256，不保存明文。登录连续失败 5 次暂限该来源 10 分钟。

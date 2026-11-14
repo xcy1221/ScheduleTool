@@ -2,12 +2,13 @@
 
 个人中文日程工具，支持 TODO · 待办与想法及日历双向联动、月／周／日视图、全天与跨天、重复与单次例外，以及 REST API、MCP/OAuth 和事务审计。业务时区固定为 `Asia/Shanghai`。
 
-采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；前端资源打入同一个可运行 JAR。MCP 为可选功能，默认关闭。
+采用 Java 21、Spring Boot 3.5.16、MySQL 8.4、Vue 3 和 TypeScript；支持独立前端与后端 JAR，也保留原一体打包。MCP 为可选功能，默认关闭。
 
 ## 开始使用
 
 - [部署流程](docs/deployment.md)：数据库初始化、构建、HTTPS 反代、启动与验证。
 - [本地开发](docs/development.md)：环境配置、构建、运行和测试。
+- [独立前端](docs/independent-web.md)：不可变资源版本、后端健康检查与独立发布。
 - [MCP 接入](docs/mcp.md)：OAuth 配置、14 个工具与本地验收。
 - MCP Tunnel 模板使用独立 ISP 出站代理；配置与运行变更见 [MCP 部署](deploy/mcp/README.md) 和 [部署记录](docs/deployment.md#7-部署记录)。
 - [维护与备份](docs/maintenance.md)：升级、重启、恢复和排障。

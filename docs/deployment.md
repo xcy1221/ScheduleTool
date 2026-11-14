@@ -82,6 +82,13 @@ docker compose logs --tail 80 scheduletool
 
 ## 7. 部署记录
 
+### 2026-11-14 独立前端（待发布）
+
+- 新增不可变版本资源前缀、`external-web` 后端打包 profile 及独立 `/schedule/health`；部署和 Tunnel 启动探针不再检查首页。
+- `/schedule/` 及 API、Cookie/CSRF、内网免登录和 OAuth/MCP 路径保持，未修改业务数据、数据库结构、密钥或授权名单。
+- 本批构建、验证和实际版本由发布完成后回填；当前不能据此认定已上线。构建和回滚方式见 [独立前端](independent-web.md)。
+- 本地验收：TypeScript/生产构建、6 项前端和 48 项后端测试通过；隔离浏览器验证桌面及 390 px 下明暗五色共 20 组布局/色彩一致，首页与外观浮层各 4 组截图逐像素一致，旧偏好、恢复本页默认、日历刻度和返回入口通过。尚待生产入口及真实 MCP 回查。
+
 ### 2026-11-14 内网页面免登录
 
 - 已部署 [PR #8](https://github.com/xcy1221/ScheduleTool/pull/8)，前后端均构建自 `43921791d3eda7188452712731940fa479f1a933`；镜像 `scheduletool:lan-auto-60f8f65df23d`，JAR SHA-256 为 `60f8f65df23dce56ff7627c2a8683673f7d37b3acc6cc760bcb258850358905b`。

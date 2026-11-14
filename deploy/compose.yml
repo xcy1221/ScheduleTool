@@ -29,6 +29,12 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     mem_limit: 768m
+    healthcheck:
+      test: [CMD, bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /schedule/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && read -r status <&3 && [[ "$$status" == HTTP/*" 200"* ]]']
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     logging:
       driver: local
       options: {max-size: "10m", max-file: "3"}
