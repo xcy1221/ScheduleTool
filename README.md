@@ -34,4 +34,4 @@
 
 - 当前项目版本统一索引见 [VERSION](VERSION)，与 `backend/pom.xml`、`frontend/package.json` 保持一致；沿用现有构建和发布流程。
 - 是否仍在维护以 [STATUS.md](STATUS.md) 的 `maintenance_status` 为准；维护结论变化时同步该文件及本节。
-- 已上线内网免登录与独立前端，当前程序源为 `984236f`；生产、回滚和真实 MCP 验证见 [部署记录](docs/deployment.md#7-部署记录)，文档合并不自动更新运行版本。
+- 已上线内网免登录、独立前端与 agent 自报来源；当前后端程序源 `4df85f6`，前端保持 `984236f` / `20261114-vue1`。验证见 [部署记录](docs/deployment.md#7-部署记录)，文档合并不自动更新运行版本。
