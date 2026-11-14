@@ -12,6 +12,8 @@ OAuth 使用授权码 + PKCE S256、精确回调地址、预注册客户端和 `
 
 所有写工具的 `source` 必填：ChatGPT 用 `CHATGPT`，Dot 用 `DOT`，Codex 用 `CODEX`；其他 agent 按自身理解填名称，如 `Claude Code`，不回退 `UNKNOWN` 或 `OTHER`。允许 1–64 位可打印 ASCII，首尾无空格；回执与审计原样保留该值。
 
+Dot 刷新插件后仍显示旧来源枚举时，按[工具定义缓存排障](maintenance.md#dot-刷新工具后仍显示旧参数)处理；2026-11-15 已有重启 Dot 后恢复的用户反馈。
+
 ## 服务配置
 
 | 配置 | 含义 |

@@ -59,3 +59,13 @@ sha256sum scheduletool.sql > scheduletool.sql.sha256
 - 401 重新登录／授权，403 检查 CSRF 或 OAuth 权限，409 重新查询版本，429 停止重复登录。
 - 隧道 ready 不代表授权和工具调用已通过；核对真实轮询、OAuth 发现和工具调用。无 Bearer 的 401 可能只是鉴权挑战。
 - 本机更新使用 `stop.ps1` → `build.ps1` → `start.ps1`；保留 `.local` 和独立开发库。
+
+### Dot 刷新工具后仍显示旧参数
+
+2026-11-15：PR #11 部署后，Codex 已收到 `source: string` 和“Dot 填 DOT”的说明，Dot 刷新插件后仍报告旧 `CHATGPT/CODEX/OTHER/UNKNOWN` 枚举。用户重启 Dot 后恢复。疑似客户端工具定义缓存未刷新，尚未确认产品缺陷。
+
+1. 在 Dot 使用的插件连接中选择“刷新工具”，新建聊天并重新选中插件；这是[官方元数据刷新流程](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata)。
+2. 若仍显示旧定义，完全退出并重新启动 Dot，再检查当前工具参数。新版 `source` 是必填字符串，说明包含“Dot 填 DOT”，其他 agent 自报名称。
+3. 若重启后仍旧，核对 MCP 地址或 Tunnel ID 是否与正式服务一致，并比对服务端 `tools/list` 与 Dot 当前收到的定义。
+
+“刷新连接使用的账户”用于账号授权问题；工具定义过期时先刷新工具。检查定义与 `schedule_status` 即可，无需创建生产测试日程。
