@@ -114,10 +114,31 @@ class AuditTest {
         String requestId=created.getResponse().getHeader("X-Request-ID");
         var response=mvc.perform(get("/api/v1/audit-logs").header("Authorization","Bearer "+token).param("requestId",requestId))
             .andExpect(status().isOk()).andExpect(jsonPath("$[0].data.actor").value("admin"))
-            .andExpect(jsonPath("$[0].data.authentication").value("bearer")).andReturn().getResponse().getContentAsString();
+            .andExpect(jsonPath("$[0].data.authentication").value("bearer"))
+            .andExpect(jsonPath("$[0].data.declaredSource").value("UNKNOWN")).andReturn().getResponse().getContentAsString();
         assertFalse(response.contains(token));assertFalse(response.contains("TestPassword123!"));
         mvc.perform(get("/api/v1/audit-logs").header("Authorization","Bearer "+token).param("limit","201")).andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/events").header("Authorization","Bearer "+token)).andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/audit-logs/verify").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.valid").value(true));
+    }
+    @Test void declaredAgentIdentityIsPreservedAndInvalidHeadersDoNotWrite() throws Exception {
+        var login=mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"username\":\"admin\",\"password\":\"TestPassword123!\"}")).andReturn();
+        String token=json.readTree(login.getResponse().getContentAsString()).path("accessToken").asText();
+        var sources=List.of("CHATGPT","DOT","CODEX","Claude Code","A".repeat(64));
+        for(String source:sources) {
+            var created=mvc.perform(post("/api/v1/events").header("Authorization","Bearer "+token).header("X-Schedule-Source",source)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input(0))))
+                .andExpect(status().isCreated()).andReturn();
+            var entries=audit.list(0,20,null,created.getResponse().getHeader("X-Request-ID"));
+            assertEquals(source,entries.getFirst().data().path("declaredSource").asText());
+        }
+        for(String source:List.of(""," "," Dot","Dot ","A".repeat(65),"Dot\tAgent","Dot\r\nInjected: value","代理"))
+            mvc.perform(post("/api/v1/events").header("Authorization","Bearer "+token).header("X-Schedule-Source",source)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input(0))))
+                .andExpect(status().isBadRequest());
+        assertEquals(sources.size(),db.queryForObject("SELECT COUNT(*) FROM schedule_events",Integer.class));
+        assertEquals(sources.size(),audit.verify(null,null).checked());
+        assertTrue(audit.verify(null,null).valid());
     }
 }

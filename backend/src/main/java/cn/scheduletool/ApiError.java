@@ -18,7 +18,8 @@ public class ApiError {
     }
     @ExceptionHandler(Failure.class)
     ProblemDetail failure(Failure e) { return ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(e.status), e.getMessage()); }
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class,
+        org.springframework.security.web.firewall.RequestRejectedException.class})
     ProblemDetail badInput(Exception e) { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "请求格式或时间参数不正确"); }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail validation(MethodArgumentNotValidException e) {

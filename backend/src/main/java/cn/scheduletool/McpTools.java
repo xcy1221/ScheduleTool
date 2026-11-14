@@ -20,7 +20,9 @@ class McpTools {
     private static Map<String,Object> string(String description) { return Map.of("type","string","description",description); }
     private static Map<String,Object> integer(String description,int minimum,int maximum) { return Map.of("type","integer","description",description,"minimum",minimum,"maximum",maximum); }
     private static Map<String,Object> choices(String description,String... values) { return Map.of("type","string","description",description,"enum",List.of(values)); }
-    private static final Map<String,Object> SOURCE=choices("执行 AI 自报来源；ChatGPT 填 CHATGPT，Codex 填 CODEX，不确定填 UNKNOWN。标签不证明客户端身份。","CHATGPT","CODEX","OTHER","UNKNOWN");
+    private static final Map<String,Object> SOURCE=Map.of("type","string","description",
+        "执行 agent 自报身份：ChatGPT 填 CHATGPT，Dot 填 DOT，Codex 填 CODEX；其他 agent 按自身理解填写名称，不用 OTHER/UNKNOWN 兜底。1–64 位可打印 ASCII，首尾不能有空格。标签不证明客户端身份。",
+        "minLength",1,"maxLength",64,"pattern",DeclaredSource.PATTERN,"examples",List.of("CHATGPT","DOT","CODEX","Claude Code"));
     private static final Map<String,Object> ID=string("查询得到的 seriesId，UUID；不能使用 seriesId@日期 的展示 ID。");
     private static final Map<String,Object> SCOPE=choices("OCCURRENCE 操作某一次，SERIES 操作整个系列。用户未明确范围时先澄清。","SERIES","OCCURRENCE");
     private static final Map<String,Object> DATE=string("原重复规则日期 YYYY-MM-DD，即使该次已经移动也不变。OCCURRENCE 必填。");
@@ -99,8 +101,7 @@ class McpTools {
     }
     private Object execute(String name,Map<String,Object> args) {
         boolean write=Set.of("schedule_create","schedule_update","schedule_delete","todo_create","todo_update","todo_delete","schedule_link_todo").contains(name);
-        String source=write?(args.get("source") instanceof String value?value:""):"UNKNOWN";
-        if(write && !Set.of("CODEX","CHATGPT","OTHER","UNKNOWN").contains(source)) throw new ApiError.Failure(400,"来源标签不正确");
+        String source=write?DeclaredSource.require(args.get("source") instanceof String value?value:null):"UNKNOWN";
         String path="/api/v1/events",method="GET"; Object body=null;
         if(Set.of("schedule_get","schedule_update","schedule_delete").contains(name)) path+="/"+UUID.fromString((String)args.get("seriesId"));
         if(name.equals("schedule_list")) {

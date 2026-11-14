@@ -14,7 +14,6 @@ _REPOSITORY = Path(__file__).resolve().parents[3]
 DEFAULT_HOME = _REPOSITORY if (_REPOSITORY / 'backend/pom.xml').is_file() else Path.cwd()
 FIELDS = {'title', 'description', 'start', 'end', 'allDay', 'timeZone', 'recurrence', 'repeatUntil', 'color', 'version', 'todoId', 'todoVersion'}
 TODO_FIELDS = {'title', 'description', 'expectedEffect', 'implementationIdea', 'status', 'pinned', 'version'}
-SOURCES = ('CODEX', 'CHATGPT', 'WEB', 'OTHER', 'UNKNOWN')
 
 
 class Failure(Exception):
@@ -44,9 +43,10 @@ def credentials(home):
 
 
 class Client:
-    def __init__(self, base, username, password, source='UNKNOWN', ca_file=None):
-        if source not in SOURCES:
-            raise Failure('来源须为 CODEX、CHATGPT、WEB、OTHER 或 UNKNOWN。')
+    def __init__(self, base, username, password, source=None, ca_file=None):
+        if source is not None and (not isinstance(source, str) or not 1 <= len(source) <= 64
+                or source != source.strip(' ') or any(not 0x20 <= ord(c) <= 0x7e for c in source)):
+            raise Failure('来源须为 1–64 位可打印 ASCII，首尾不能有空格。')
         self.source = source
         parsed = parse.urlsplit(base)
         if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -73,6 +73,8 @@ class Client:
             headers['Authorization'] = 'Bearer ' + self.token
         route = path.partition('?')[0]
         if method in ('POST', 'PUT', 'DELETE') and any(route == base or route.startswith(base + '/') for base in ('/api/v1/events', '/api/v1/todos')):
+            if self.source is None:
+                raise Failure('写操作须填写 --source：ChatGPT 用 CHATGPT，Dot 用 DOT，Codex 用 CODEX，其他 agent 填自身名称。')
             headers['X-Schedule-Source'] = self.source
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode('utf-8')
         req = request.Request(self.base + path, data=data, headers=headers, method=method)
@@ -214,7 +216,7 @@ def parser():
     p.add_argument('--home', type=Path, default=Path(os.environ.get('SCHEDULETOOL_HOME', DEFAULT_HOME)))
     p.add_argument('--url', default=os.environ.get('SCHEDULETOOL_URL'))
     p.add_argument('--ca-file', type=Path, default=os.environ.get('SCHEDULETOOL_CA_FILE'), help='HTTPS 私有 CA 的公开证书文件')
-    p.add_argument('--source', choices=SOURCES, default='UNKNOWN', help='调用方自报来源；不代表服务端已保存')
+    p.add_argument('--source', help='写操作必填：CHATGPT、DOT、CODEX；其他 agent 填自身名称（1–64 位可打印 ASCII，首尾无空格），不回退 UNKNOWN/OTHER')
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('status')
     listing = sub.add_parser('list')

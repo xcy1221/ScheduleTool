@@ -66,11 +66,11 @@ class SkillClientTest(unittest.TestCase):
         Handler.received_sources.clear()
         Handler.fail_write = False
 
-    def connect(self, source='UNKNOWN'):
+    def connect(self, source='CODEX'):
         return client.Client(f'http://127.0.0.1:{self.server.server_port}', 'admin', 'test-password', source=source)
 
     def test_declared_source_is_sent_on_all_event_writes_only(self):
-        for source in ('CODEX', 'CHATGPT'):
+        for source in ('CODEX', 'CHATGPT', 'DOT', 'Claude Code', 'a'*64):
             Handler.received_sources.clear()
             with self.connect(source) as api:
                 client.mutate(api, SimpleNamespace(command='create'), {'title': 'test'})
@@ -81,25 +81,40 @@ class SkillClientTest(unittest.TestCase):
             self.assertEqual([source]*3, [x[2] for x in writes])
             self.assertTrue(all(x[2] is None for x in Handler.received_sources if x not in writes))
 
-    def test_default_source_is_unknown_and_invalid_source_is_rejected(self):
-        with self.connect() as api:
-            result = client.mutate(api, SimpleNamespace(command='create'), {})
-            self.assertEqual('UNKNOWN', result['declaredSource'])
-        with self.assertRaises(client.Failure):
-            self.connect('CODEX\r\nInjected: value')
-        self.assertEqual('CHATGPT', client.parser().parse_args(['--source', 'CHATGPT', 'status']).source)
+    def test_source_is_optional_for_reads_and_required_before_writes(self):
+        self.assertIsNone(client.parser().parse_args(['status']).source)
+        with self.connect(None) as api:
+            api.call('/api/v1/events')
+            for path in ('/api/v1/events', '/api/v1/events/test-id/todo', '/api/v1/todos'):
+                for method in ('POST', 'PUT', 'DELETE'):
+                    with self.subTest(path=path, method=method), self.assertRaises(client.Failure):
+                        api.call(path, method, {})
+        self.assertTrue(all(method == 'GET' or path.endswith(('/login', '/logout'))
+                            for method, path, _ in Handler.received_sources))
+        self.assertTrue(all(source is None for _, _, source in Handler.received_sources))
+
+    def test_custom_source_is_preserved_and_invalid_source_is_rejected(self):
+        for source in ('CHATGPT', 'DOT', 'CODEX', 'Claude Code'):
+            self.assertEqual(source, client.parser().parse_args(['--source', source, 'status']).source)
+        for source in ('', ' ', ' CODEX', 'CODEX ', 'a'*65, 'CODEX\r\nInjected: value', 'x\t', 'x\x00', 'x\x7f', '智能体', 123):
+            with self.subTest(source=source), self.assertRaises(client.Failure):
+                self.connect(source)
+        self.assertEqual([], Handler.calls)
 
     def test_todo_writes_and_link_send_source_and_return_receipts(self):
-        with self.connect('CODEX') as api:
-            args = client.parser().parse_args(['todo-create', '--input', 'unused.json'])
-            result = client.todo_operation(api, args, {'title': '想法'})
-            self.assertEqual('4', result['auditSequence'])
-            self.assertEqual('test-request', result['requestId'])
-            api.call('/api/v1/todos/test-id', 'PUT', {})
-            api.call('/api/v1/events/test-id/todo', 'PUT', {})
-            api.call('/api/v1/todos/test-id?version=0&mode=KEEP_EVENTS', 'DELETE')
-        writes = [x for x in Handler.received_sources if x[2]]
-        self.assertEqual(['CODEX']*4, [x[2] for x in writes])
+        for source in ('CODEX', 'DOT', 'Claude Code'):
+            Handler.received_sources.clear()
+            with self.connect(source) as api:
+                args = client.parser().parse_args(['todo-create', '--input', 'unused.json'])
+                result = client.todo_operation(api, args, {'title': '想法'})
+                self.assertEqual('4', result['auditSequence'])
+                self.assertEqual('test-request', result['requestId'])
+                self.assertEqual(source, result['declaredSource'])
+                api.call('/api/v1/todos/test-id', 'PUT', {})
+                api.call('/api/v1/events/test-id/todo', 'PUT', {})
+                api.call('/api/v1/todos/test-id?version=0&mode=KEEP_EVENTS', 'DELETE')
+            writes = [x for x in Handler.received_sources if x[2]]
+            self.assertEqual([source]*4, [x[2] for x in writes])
 
     def test_todo_conflict_is_not_retried_and_delete_requires_choice(self):
         Handler.fail_write = True

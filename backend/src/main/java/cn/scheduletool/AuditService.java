@@ -80,6 +80,11 @@ public class AuditService {
         return changeEntity(action,id,EventService.Scope.SERIES,null,true,work);
     }
     private <T> T changeEntity(String action,String id,EventService.Scope scope,LocalDate date,boolean todo,Supplier<T> work) {
+        var attributes=RequestContextHolder.getRequestAttributes();
+        var req=attributes instanceof ServletRequestAttributes s?s.getRequest():null;
+        String source=req==null?null:req.getHeader("X-Schedule-Source");
+        String declaredSource=source==null?(req!=null && "cookie".equals(req.getAttribute("authentication"))?"WEB":"UNKNOWN"):
+            DeclaredSource.require(source);
         if(db.queryForObject("SELECT id FROM audit_lock WHERE id=1 FOR UPDATE",Integer.class)==null)
             throw new IllegalStateException("审计锁缺失");
         var tail=db.query("SELECT * FROM audit_log ORDER BY sequence_id DESC LIMIT 1",this::row);
@@ -89,8 +94,6 @@ public class AuditService {
         var before=todo?todoSnapshot(id):snapshot(id);
         var affected=todo?db.query("SELECT series_id FROM todo_events WHERE todo_id=? ORDER BY series_id",(rs,n)->rs.getString(1),id):List.<String>of();
         T result=work.get();
-        var attributes=RequestContextHolder.getRequestAttributes();
-        var req=attributes instanceof ServletRequestAttributes s?s.getRequest():null;
         var session=req==null?null:(Auth.Session)req.getAttribute("session");
         String requestId=req==null?UUID.randomUUID().toString():(String)req.getAttribute("requestId");
         if(requestId==null) requestId=UUID.randomUUID().toString();
@@ -101,9 +104,7 @@ public class AuditService {
         data.put("occurrenceDate",date==null?null:date.toString()); data.put("recordedAt",Instant.now().toString());
         data.put("actor",session==null?"internal":session.username());
         data.put("authentication",req==null?"internal":req.getAttribute("authentication"));
-        String source=req==null?null:req.getHeader("X-Schedule-Source");
-        data.put("declaredSource",source!=null && Set.of("CODEX","CHATGPT","WEB","OTHER","UNKNOWN").contains(source)?source:
-            req!=null && "cookie".equals(req.getAttribute("authentication"))?"WEB":"UNKNOWN");
+        data.put("declaredSource",declaredSource);
         data.put("remoteAddress",req==null?null:req.getRemoteAddr());
         data.put("before",before); data.put("after",todo?todoSnapshot(id):snapshot(id));
         String payload=encode(data),hash=Auth.hash(previous+"\n"+payload);
