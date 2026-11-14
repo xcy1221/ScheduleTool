@@ -82,6 +82,13 @@ docker compose logs --tail 80 scheduletool
 
 ## 7. 部署记录
 
+### 2026-11-15 agent 自报来源
+
+- 已部署 [PR #11](https://github.com/xcy1221/ScheduleTool/pull/11)，后端程序源 `4df85f6b3eceba90aff5e3cc0f0ae2220875f777`；镜像 `scheduletool:agent-source-7a783f9337a0`，JAR SHA-256 `7a783f9337a00a7bb42a8c627bf1700ec6718211c599f2d60075606f981e859e`。本次无需数据库迁移；前端保持 `20261114-vue1`（程序源 `984236f`），Tunnel 镜像不变。
+- 来源约定为 `CHATGPT`、`DOT`、`CODEX`，其他 agent 自报名称，不再默认填 `UNKNOWN`；本机 skill 与 Python 客户端已同步。50 项后端测试通过。
+- 应用与 Tunnel 均 healthy，健康检查为 UP；真实连接器 `schedule_status` 与 OAuth MCP 验证通过，14 个工具正常，7 个写工具的来源 schema 已更新。
+- 8 条日程、12 条待办、73 条审计及关联指纹不变，审计链有效。数据库与服务配置已备份并校验，`serverctl plan` 无差异或漂移，临时令牌与验证会话已撤销。
+
 ### 2026-11-14 独立前端与仅 API 后端
 
 - 新增不可变版本资源前缀、`external-web` 后端打包 profile 及独立 `/schedule/health`；部署和 Tunnel 启动探针不再检查首页。
