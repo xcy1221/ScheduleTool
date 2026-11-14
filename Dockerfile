@@ -1,6 +1,7 @@
 FROM node:22.22.0-alpine AS web
 WORKDIR /web
 COPY frontend/package*.json ./
+COPY frontend/vendor/ vendor/
 RUN npm ci --no-fund --no-audit
 COPY frontend/ ./
 RUN npm run build
@@ -18,5 +19,5 @@ COPY --from=build --chown=schedule:schedule /project/backend/target/scheduletool
 USER schedule
 ENV APP_BIND=0.0.0.0 APP_PORT=8080 APP_CONTEXT=/schedule
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s CMD wget -q --spider http://127.0.0.1:8080/schedule/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s CMD wget -q --spider http://127.0.0.1:8080/schedule/health || exit 1
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-jar", "/app/app.jar"]

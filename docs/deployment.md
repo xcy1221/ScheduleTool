@@ -49,7 +49,7 @@ docker compose run --rm --no-deps scheduletool --hash-password
 
 ## 4. 配置 HTTPS 入口
 
-将以下片段加入现有 Caddy 站点，保留 `/schedule` 前缀：
+统一 Nginx 托管按 [独立前端](independent-web.md) 配置，保留页面、版本资源与 API 的分流。以下片段仅用于仍保留前端入 JAR 的一体部署，保留 `/schedule` 前缀：
 
 ```caddyfile
 redir /schedule /schedule/ 308
@@ -81,6 +81,16 @@ docker compose logs --tail 80 scheduletool
 基础部署完成后，按 [MCP 接入](mcp.md) 和 [MCP 容器部署](../deploy/mcp/README.md) 准备 OAuth 密钥与隧道发布包。无需 AI 接入时保持默认关闭。
 
 ## 7. 部署记录
+
+### 2026-11-14 独立前端与仅 API 后端
+
+- 新增不可变版本资源前缀、`external-web` 后端打包 profile 及独立 `/schedule/health`；部署和 Tunnel 启动探针不再检查首页。
+- `/schedule/` 及 API、Cookie/CSRF、内网免登录和 OAuth/MCP 路径保持，未修改业务数据、数据库结构、密钥或授权名单。
+- 前后端实际构建源均为 `984236f0df1d76e423ebe00c6dba5e6ee36c826d`，前端版本 `20261114-vue1`，公共包 1.0.0；应用镜像 `scheduletool:web-split-3e3ad8408a71`，JAR SHA-256 `3e3ad8408a71904e2169269c215a8e772d1d479e0213c4292e870495314343e7`。后续模板/文档提交不冒充程序提交。
+- 首次健康过渡发布的 `--build` 连带构建既有 Tunnel，因远端缺原二进制和许可证制品失败；serverctl 已自动回退并复核旧服务健康。随后预构建应用，以及基于原固定镜像、仅替换入口脚本的 Tunnel 薄层，再不带 `--build` 完成发布；问题已解决。Tunnel 为 `scheduletool-tunnel:0.0.16-health-20261114`，保留原客户端、许可证、密钥与授权配置。
+- 本地 TypeScript/生产构建、6 项前端和 48 项隔离后端测试通过；覆盖增改删、重复与单次例外。桌面/390 px 明暗五色共 20 组布局一致，首页及外观浮层各 4 组截图逐像素一致，旧偏好、默认恢复和返回入口通过。
+- 生产 1365/390 px 月/周/日、15/60 分钟刻度、明暗/色调、TODO 与返回通过；健康 200/UP，匿名 REST/无效 Bearer 为 401，缺 CSRF 为 403，OAuth 元数据及动态登录页正常，旧 JAR 两项实际静态资源路径为 404。生产未新增或修改日程，写入与重复规则使用隔离样例验证。
+- 2026-11-14 17:06:56（Asia/Shanghai），实际连接器 `schedule_status` 成功返回服务器状态，确认既有 OAuth/Tunnel 真链路。前端实际切回旧版再发布 `20261114-vue1` 已通过，演练未重启后端；构建与恢复见 [独立前端](independent-web.md)。
 
 ### 2026-11-14 内网页面免登录
 

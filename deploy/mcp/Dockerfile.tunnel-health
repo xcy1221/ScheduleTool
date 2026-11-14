@@ -1,0 +1,3 @@
+ARG TUNNEL_BASE_IMAGE
+FROM ${TUNNEL_BASE_IMAGE}
+COPY --chmod=0555 tunnel-entrypoint.sh /usr/local/bin/tunnel-entrypoint.sh

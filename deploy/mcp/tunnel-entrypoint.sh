@@ -8,7 +8,7 @@ if [[ "${1:-}" == run ]]; then
     for ((attempt=0; attempt<60; attempt++)); do
         if (
             exec 3<>/dev/tcp/scheduletool/8080
-            printf 'GET /schedule/ HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+            printf 'GET /schedule/health HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
             IFS= read -r -t 3 status <&3
             [[ "$status" == HTTP/*" 200"* ]]
         ) 2>/dev/null; then

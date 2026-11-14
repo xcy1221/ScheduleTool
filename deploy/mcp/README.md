@@ -26,6 +26,16 @@ private/
 
 客户端下载入口以 [OpenAI 官方指南](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels) 为准；本模板已验证 v0.0.16。更换版本先检查 CLI 帮助、配置与健康命令。`Dockerfile.tunnel` 从 Ubuntu Java 镜像提取 x86_64 Bash 依赖，不适用于 ARM。
 
+只将启动探针改为 `/schedule/health` 时，可使用 `Dockerfile.tunnel-health`，以已核对 Image ID 的本机镜像标签或固定仓库 digest 作为 `TUNNEL_BASE_IMAGE`。它仅替换入口脚本，继承原客户端、cloudflared、许可证、CA、UID 和启动参数，不下载或升级 Tunnel。先确认后端健康接口可用，预构建唯一新标签并验证；再通过 serverctl 发布且不带 `--build`，防止 Compose 连带重建缺少原二进制的完整 Tunnel 构建上下文。原 `Dockerfile.tunnel` 继续用于具备完整官方发布包的首次构建。
+
+```sh
+docker build --pull=false -f Dockerfile.tunnel-health \
+  --build-arg TUNNEL_BASE_IMAGE=<已核对的本机基础镜像标签> \
+  -t scheduletool-tunnel:0.0.16-health-20261114 .
+```
+
+上述构建由既有服务器管理入口执行；记录基础与新镜像 ID，保留原标签供配置/镜像回退。源码提交、已测试 JAR 提交与模板文档提交分别记录。
+
 ## 2. 数据库与 OAuth 密钥
 
 新库执行 `deploy/database-init.sql`，已包含 V3。仅旧 V1/V2 库使用 `upgrade-v3.sql`：复制为私有文件，替换 `REPLACE_WITH_APP_HOST`，确认库名、账号与成功的 V1/V2 校验和后，由管理员完整执行一次；先备份，遇错停止，不使用 `--force`。脚本检查现有状态，不创建新库或账号。失败后核对已提交 DDL，不盲目重跑。
@@ -71,7 +81,7 @@ docker compose up -d --wait --wait-timeout 120
 docker compose ps
 ```
 
-隧道按应用健康依赖启动，入口另等应用返回 200；原生健康检查要求成功控制平面轮询。保持运行后，按 [MCP 接入](../../docs/mcp.md) 完成 OAuth 关联并测试 8 个工具、重复例外、审计、重启持久化和令牌刷新。
+隧道按应用健康依赖启动，入口另等 `/schedule/health` 返回 200；原生健康检查要求成功控制平面轮询。保持运行后，按 [MCP 接入](../../docs/mcp.md) 完成 OAuth 关联并测试 14 个工具、重复例外、审计、重启持久化和令牌刷新。
 
 已有服务器管理工具时，通过其预置挂载、登记文件来源、检查差异并发布；不要把整个私密目录登记成公开配置源。回退恢复旧配置及镜像，保留 V3 新表，数据库恢复先在隔离库演练。
 
