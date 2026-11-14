@@ -4,7 +4,7 @@
 
 网页、Swagger UI、skill 和其他 REST 客户端共用日程服务的事务钩子。每次成功的新增、修改、删除自动追加审计：UTC 时间、登录用户、认证方式、请求 ID、系列 ID、单次/整系列范围、原规则日期，以及完整系列和全部例外的前后快照。删除后仍保留记录，无日程外键级联。
 
-MCP 通过同一 REST API 写入。payload.schemaVersion=2 中，`declaredSource` 保存 X-Schedule-Source 自报标签；Cookie 缺省为 WEB，其他缺省或无效标签为 UNKNOWN。该字段不证明真实客户端身份，不改写旧正文或哈希。
+MCP 通过同一 REST API 写入。`declaredSource` 原样保存 `X-Schedule-Source` 自报标签：固定约定 `CHATGPT`、`DOT`、`CODEX`，其他 agent 填自身名称，不回退 `UNKNOWN` 或 `OTHER`。名称为 1–64 位可打印 ASCII，首尾无空格；显式无效值返回 400。REST 缺省请求头仍兼容 Cookie 为 `WEB`、其他为 `UNKNOWN`。该字段不证明真实客户端身份，不改写旧正文或哈希。
 
 日程和审计在同一数据库事务中提交；审计写入失败则日程回滚。并发写入先取得专用行锁，保证序号与哈希链连续。409、校验失败、未登录等失败请求不记为成功变更，按请求 ID 查看运行日志。响应头 `X-Request-ID` 用于排错；成功写入另有 `X-Audit-Sequence`。
 

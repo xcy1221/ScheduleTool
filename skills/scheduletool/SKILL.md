@@ -26,7 +26,7 @@ description: 通过 REST API 管理 ScheduleTool 日程，查询统一操作审�
 
 - 使用网页/API 的应用登录账号，不使用 MySQL 的应用或迁移账号；agent 不需要数据库凭据。
 - 脚本自行读取项目 `.local/login.txt` 的 `用户名：`、`密码：` 两行；`SCHEDULETOOL_USERNAME` / `SCHEDULETOOL_PASSWORD` 环境变量分别优先覆盖。不要用读取文件的工具把凭据打印到上下文，也不要放进 skill、命令参数、日程或回答。
-- 已有配置时直接执行 `--source CODEX status` 检查连接，然后执行用户授权的操作，不重复询问密码。每条命令自动登录，Bearer token 仅留在进程内存，结束时调用退出接口；无需手动传入或保存 token。
+- 已有配置时直接执行 `status` 检查连接，然后执行用户授权的操作，不重复询问密码。每条命令自动登录，Bearer token 仅留在进程内存，结束时调用退出接口；无需手动传入或保存 token。
 - 配置缺失时，请用户在本机私密文件或进程环境中补齐，不让用户在聊天里粘贴密码。登录返回 401 时报告凭据无效并停止，不反复尝试；429 时停止重复登录。不要为验证登录而新增测试日程。
 
 下列命令从本 skill 目录运行，其他目录使用脚本绝对路径：
@@ -49,8 +49,8 @@ python scripts/scheduletool.py --help
 
 ## 日程操作
 
-- 来源由执行 AI 自行填写：Codex 使用 `--source CODEX`，ChatGPT 使用 `--source CHATGPT`；不能确定时使用 UNKNOWN，不询问用户。参数放在子命令前，例如 `python scripts/scheduletool.py --source CODEX create --input 日程.json`。
-- 脚本为日程新增、修改、删除请求附加 `X-Schedule-Source`；新版后端在审计 `data.declaredSource` 中保存。来源是自报标签，不能证明调用方身份。目标仍为旧版本时可能没有该字段，以审计实际返回为准；不能把发送请求头说成已经入库。不要将来源拼进标题或备注。
+- 写操作必须由执行 AI 自填来源：ChatGPT 用 `CHATGPT`，Dot 用 `DOT`，Codex 用 `CODEX`；其他 agent 按自身理解填写名称，如 `Claude Code`，不回退 `UNKNOWN` 或 `OTHER`，不询问用户。名称为 1–64 位可打印 ASCII，首尾不能有空格。参数放在子命令前，例如 `python scripts/scheduletool.py --source DOT create --input 日程.json`。
+- 脚本为日程、待办与关联的写请求附加 `X-Schedule-Source`；新版后端在审计 `data.declaredSource` 中原样保存。来源是自报标签，不能证明调用方身份。目标仍为旧版本时可能没有该字段，以审计实际返回为准；不能把发送请求头说成已经入库。不要将来源拼进标题或备注。
 - 时间按用户当前日期和 `Asia/Shanghai` 理解。仅明确时间点时保持 `end=null`，不要补造时长；全天结束时间是最后一天之后的零点。
 - `list --from 时间 --to 时间` 查询左闭右开区间，每次最长 366 天；`get 系列ID` 读取系列定义。
 - `create --input JSON文件` 新增；`update 系列ID --scope SERIES或OCCURRENCE --input JSON文件` 修改；`delete 系列ID --scope SERIES或OCCURRENCE --version 版本号 --confirm-delete` 删除。

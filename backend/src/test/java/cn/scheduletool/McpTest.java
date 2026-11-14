@@ -170,6 +170,44 @@ class McpTest {
         assertEquals(413,send("POST","/mcp"," ".repeat(65537),token).statusCode());
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM schedule_events",Integer.class));
     }
+    @Test void dotAndCustomAgentSourcesReachAuditAndInvalidSourcesDoNotWrite() throws Exception {
+        String token=tokens("schedule:read schedule:write").path("access_token").asText();
+        var definitions=rpc(token,"tools/list",Map.of()).path("result").path("tools");
+        int writes=0;
+        for(var definition:definitions) {
+            var source=definition.path("inputSchema").path("properties").path("source");
+            if(source.isMissingNode()) continue;
+            writes++;
+            assertFalse(source.has("enum"));
+            assertTrue(source.path("examples").toString().contains("DOT"));
+            assertTrue(definition.path("inputSchema").path("required").toString().contains("source"));
+        }
+        assertEquals(7,writes);
+        for(String source:List.of("DOT","Claude Code","A".repeat(64))) {
+            var created=tool(token,"schedule_create",Map.of("event",event("2026-11-01T09:00:00","NONE"),"source",source));
+            assertFalse(created.path("isError").asBoolean(),created.toString());
+            assertEquals(source,created.path("structuredContent").path("declaredSource").asText());
+            String id=created.path("structuredContent").path("result").path("id").asText();
+            var update=event("2026-11-01T10:00:00","NONE");update.put("version",0);
+            assertFalse(tool(token,"schedule_update",Map.of("seriesId",id,"scope","SERIES","event",update,"source",source)).path("isError").asBoolean());
+            assertFalse(tool(token,"schedule_delete",Map.of("seriesId",id,"scope","SERIES","version",1,"source",source)).path("isError").asBoolean());
+            var history=tool(token,"schedule_history",Map.of("seriesId",id)).path("structuredContent").path("result");
+            assertEquals(3,history.size());
+            for(var entry:history) assertEquals(source,entry.path("data").path("declaredSource").asText());
+        }
+        long before=db.queryForObject("SELECT COUNT(*) FROM audit_log",Long.class);
+        var args=new LinkedHashMap<String,Object>();args.put("event",event("2026-11-01T09:00:00","NONE"));
+        assertTrue(tool(token,"schedule_create",args).path("isError").asBoolean());
+        for(Object source:List.of(""," "," Dot","Dot ","A".repeat(65),"Dot\tAgent","Dot\r\nInjected: value","代理",42)) {
+            args.put("source",source);
+            var rejected=tool(token,"schedule_create",args);
+            assertTrue(rejected.path("isError").asBoolean(),rejected.toString());
+            assertEquals(400,rejected.path("structuredContent").path("status").asInt());
+        }
+        assertEquals(before,db.queryForObject("SELECT COUNT(*) FROM audit_log",Long.class));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM schedule_events",Integer.class));
+        assertTrue(tool(token,"schedule_verify",Map.of()).path("structuredContent").path("result").path("valid").asBoolean());
+    }
     @Test void todoMcpLinkCompleteReopenAndDelete() throws Exception {
         String token=tokens("schedule:read schedule:write").path("access_token").asText();
         var created=tool(token,"todo_create",Map.of("todo",Map.of("title","MCP 待办"),"source","CODEX"));

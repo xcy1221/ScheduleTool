@@ -87,7 +87,7 @@
 | recordedAt | UTC ISO 时间 |
 | actor | 登录用户名；无 HTTP 请求上下文时为 internal |
 | authentication | cookie、bearer 或 internal，仅代表认证方式 |
-| declaredSource | CODEX、CHATGPT、WEB、OTHER、UNKNOWN；自报标签，不是客户端身份证明 |
+| declaredSource | CHATGPT、DOT、CODEX 或其他 agent 自报名称；缺省兼容 WEB/UNKNOWN，不是客户端身份证明 |
 | remoteAddress | 直接连接地址；反向代理后可能是代理地址 |
 | before、after | 完整系列行及全部例外行；不存在的一侧可省略 |
 
@@ -95,7 +95,7 @@
 
 ## 3. 来源自报
 
-按用户选择沿用应用账号，不为 CODEX、CHATGPT 分别建账号。skill 通过 X-Schedule-Source 填 CODEX，MCP 工具 source 由 AI 填 CHATGPT 等值；后端写入审计 `declaredSource`。Cookie 未提供标签时记 WEB，其他缺省或非法标签记 UNKNOWN。
+沿用应用账号，不按来源分别建账号。skill 的 `X-Schedule-Source` 与 MCP 的 `source` 由执行 AI 自填：ChatGPT 用 `CHATGPT`，Dot 用 `DOT`，Codex 用 `CODEX`；其他 agent 填自身名称，不回退 `UNKNOWN` 或 `OTHER`。名称为 1–64 位可打印 ASCII，首尾无空格，后端原样写入审计 `declaredSource`；显式无效值返回 400。REST 缺省请求头仍兼容 Cookie 记 `WEB`、其他记 `UNKNOWN`。
 
 来源放在每次操作的审计正文，未增加主表 created_source / updated_source 列。可按系列的 CREATE 与最近审计回查标签；旧审计没有该字段，不补造来源、不重写哈希。同一 admin 账号、IP、认证方式或自报标签均不能证明真实客户端身份。
 
