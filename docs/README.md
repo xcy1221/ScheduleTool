@@ -5,6 +5,7 @@
 | [部署流程](deployment.md) | 新环境部署、免登录设置与线上版本记录 |
 | [本地开发](development.md) | 本机配置、构建和测试 |
 | [独立前端](independent-web.md) | 版本资源、共享包、后端健康检查与独立发布 |
+| [项目图标](项目图标.md) | 已确认的 SVG 素材、路径及使用范围 |
 | [维护与备份](maintenance.md) | 升级、重启、免登录会话、备份恢复与排障 |
 | [MCP 接入](mcp.md) | OAuth、工具和本地验收 |
 | [API](api.md) | REST 请求、重复规则与错误码 |
@@ -18,6 +19,7 @@
 | --- | --- |
 | `backend/` | Java 服务、Flyway V1—V4 和后端测试 |
 | `frontend/` | Vue 页面、主题、日历与依赖锁文件 |
+| `assets/brand/` | 已确认的项目 SVG 图标素材 |
 | `deploy/` | 首装 SQL、开发授权、预构建 JAR 部署模板 |
 | `deploy/mcp/` | 可选 MCP/OAuth 与隧道的容器模板 |
 | `scripts/` | 本机构建、启停与 API/MCP 验证脚本 |
