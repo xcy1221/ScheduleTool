@@ -17,7 +17,7 @@
 
 ## Server Panel 集成
 
-遵循 [Server Panel 规范](https://192.168.1.71/server-readme/README.md)，统一顶部栏为 `HOMESERVER · ScheduleTool　←返回server panel　外观与排版`。布局偏好仅作用于本工具，明暗与色调使用共享设置；详见 [界面规范](docs/server-panel.md)。
+使用 Server Panel 公共 Vue 顶栏和外观面板，周／日时间刻度由日程提供。明暗和色调共享，排版偏好独立保存。见 [界面规范](docs/server-panel.md) 与 [统一前端维护](https://192.168.1.71/server-readme/frontend.md)。
 
 ## 使用约定
 
