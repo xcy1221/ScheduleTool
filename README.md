@@ -17,7 +17,7 @@
 
 ## Server Panel 集成
 
-使用 Server Panel 公共 Vue 顶栏和外观面板，周／日时间刻度由日程提供。明暗和色调共享，排版偏好独立保存。见 [界面规范](docs/server-panel.md) 与 [统一前端维护](https://192.168.1.71/server-readme/frontend.md)。
+使用 Server Panel 公共 Vue 顶栏和外观面板。内容在顶栏下方滚动，周／日时间刻度由日程提供。明暗和色调共享，排版偏好独立保存。见 [界面规范](docs/server-panel.md) 与 [统一前端维护](https://192.168.1.71/server-readme/frontend.md)。
 
 ## 使用约定
 
@@ -35,4 +35,4 @@
 
 - 当前项目版本统一索引见 [VERSION](VERSION)，与 `backend/pom.xml`、`frontend/package.json` 保持一致；沿用现有构建和发布流程。
 - 是否仍在维护以 [STATUS.md](STATUS.md) 的 `maintenance_status` 为准；维护结论变化时同步该文件及本节。
-- 已上线内网免登录、独立前端与 agent 自报来源；当前后端程序源 `4df85f6`，前端保持 `984236f` / `20261114-vue1`。验证见 [部署记录](docs/deployment.md#7-部署记录)，文档合并不自动更新运行版本。
+- 已上线内网免登录、独立前端与 agent 自报来源。前后端版本和部署验证见 [部署记录](docs/deployment.md#7-部署记录)，在服务器管理项目用 `serverctl web inspect schedule` 核对实际前端版本。
