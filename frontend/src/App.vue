@@ -10,9 +10,11 @@ import type { CalendarOptions, DatesSetArg, EventClickArg, DateSelectArg } from 
 import { DateTime } from 'luxon'
 import { api, ApiFailure, setCsrf, todoStatusText, type Todo, type TodoDetail, type TodoFilter, type ScheduleEvent, type Session, type Repeat } from './api'
 import TodoPanel from './TodoPanel.vue'
-import ServerPanelHeader from './ServerPanelHeader.vue'
-import { layout, slotDuration } from './theme'
+import { AppearancePanel, TopBar } from '@homeserver/ui'
+import { layout, resetLayout, slotDuration } from './theme'
 
+const appearance = ref<InstanceType<typeof AppearancePanel>>()
+const appearancePage = { id: 'schedule', legacyKey: 'scheduletool-layout-v1', cardGap: false }
 const zone = 'Asia/Shanghai'
 const now = () => DateTime.now().setZone(zone)
 const today = now().toISODate()!
@@ -176,7 +178,16 @@ onUnmounted(() => { window.removeEventListener('session-expired', expired); wind
 </script>
 
 <template>
-  <ServerPanelHeader />
+  <TopBar name="ScheduleTool" @appearance="appearance?.open()" />
+  <AppearancePanel ref="appearance" :page="appearancePage" @reset="resetLayout">
+    <label class="schedule-appearance-option">周／日时间刻度
+      <select v-model="layout.slotMinutes" aria-label="周／日时间刻度">
+        <option value="15">15 分钟</option>
+        <option value="30">30 分钟</option>
+        <option value="60">60 分钟</option>
+      </select>
+    </label>
+  </AppearancePanel>
   <div v-if="checking" class="boot">正在打开日程…</div>
   <main v-else-if="!user" class="login-page">
     <div class="login-intro"><div class="brand-mark">日</div><span class="eyebrow">SCHEDULETOOL</span><h1>把时间，<br>留给要做的事。</h1><p>一个清楚、安静的地方，<br>安排每一天。</p><div class="intro-bottom">日程 · 你的个人日历</div></div>

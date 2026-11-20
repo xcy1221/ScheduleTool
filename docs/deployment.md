@@ -82,6 +82,11 @@ docker compose logs --tail 80 scheduletool
 
 ## 7. 部署记录
 
+### 2026-11-19 公共 Vue 外壳
+
+- 候选前端 `20261119-vue-shell1`，公共 theme/ui `1.1.0`。日历、TODO、登录共用公共顶栏及外观面板，周／日刻度与旧偏好继续兼容。
+- 等待人工审核和发布。发布前检查窄屏、键盘操作、刻度恢复、日历／TODO 及 HTTPS 资源；通过 `serverctl web` 切换或回滚前端。
+
 ### 2026-11-15 agent 自报来源
 
 - 已部署 [PR #11](https://github.com/xcy1221/ScheduleTool/pull/11)，后端程序源 `4df85f6b3eceba90aff5e3cc0f0ae2220875f777`；镜像 `scheduletool:agent-source-7a783f9337a0`，JAR SHA-256 `7a783f9337a00a7bb42a8c627bf1700ec6718211c599f2d60075606f981e859e`。本次无需数据库迁移；前端保持 `20261114-vue1`（程序源 `984236f`），Tunnel 镜像不变。

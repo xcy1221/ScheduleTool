@@ -2,12 +2,14 @@
 schema_version: 2
 project_id: "566606cd-b710-3574-86cd-7246d450b4e3"
 maintenance_status: maintained
-last_reviewed: "2026-11-15"
+last_reviewed: "2026-11-19"
 ---
 
 ## 维护状态记录
 
 仍在维护日程、TODO、MCP 和服务器面板集成。
+
+2026-11-19：迁移至公共 Vue 顶栏与外观面板，待 PR 审核及生产发布。见 [部署记录](docs/deployment.md#7-部署记录)。
 
 2026-11-16：用户确认“日历 + 完成勾”项目图标，保存为 `assets/brand/project-icon.svg`；应用入口与线上版本未更新，见 [项目图标](docs/项目图标.md)。
 

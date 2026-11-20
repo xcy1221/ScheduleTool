@@ -19,8 +19,8 @@
     "@fullcalendar/luxon3": "6.1.20",
     "@fullcalendar/timegrid": "6.1.20",
     "@fullcalendar/vue3": "6.1.20",
-    "@homeserver/theme": "file:vendor/homeserver-theme-1.0.0.tgz",
-    "@homeserver/ui": "file:vendor/homeserver-ui-1.0.0.tgz",
+    "@homeserver/theme": "file:vendor/homeserver-theme-1.1.0.tgz",
+    "@homeserver/ui": "file:vendor/homeserver-ui-1.1.0.tgz",
     "luxon": "3.7.2",
     "vue": "3.5.44"
   },
